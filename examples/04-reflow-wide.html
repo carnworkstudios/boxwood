@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plotter Layout View - 04-reflow-wide.html</title>
+  <style>
+    body {
+      background-color: #0c0c14;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #38bdf8;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #8a8a9a;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .canvas-container {
+      background: radial-gradient(circle at center, #141424 0%, #0e0e16 100%);
+      border: 1px solid #2d2d3d;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      padding: 10px;
+      overflow: auto;
+    }
+    svg {
+      display: block;
+      background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px),
+                  repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px);
+    }
+  </style>
+</head>
+<body>
+  <h1>Plotter Layout Solver Preview</h1>
+  <p>Previewing resolved boxes for <strong>04-reflow-wide.html</strong> (1200px x 800px)</p>
+  <div class="canvas-container">
+    <svg width="1200" height="800" viewBox="0 0 1200 800">
+      <!-- Grid Background -->
+      <rect width="100%" height="100%" fill="none" />
+      
+      <!-- Resolved Elements -->
+      
+      <!-- Card: card-dynamic-text -->
+      <g>
+        <rect x="30" y="30" width="1140" height="86" rx="8" fill="rgba(245, 166, 35, 0.12)" stroke="#F5A623" stroke-width="2" />
+        <rect x="30" y="30" width="1140" height="86" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <text x="46" y="62" fill="#F5A623" font-family="monospace" font-size="14" font-weight="bold">card-dynamic-text</text>
+        <text x="46" y="80" fill="#8a8a9a" font-family="sans-serif" font-size="11">1140px x 86px</text>
+        <text x="46" y="110" fill="#e2e8f0" font-family="sans-serif" font-size="13"><tspan x="46" dy="0">Every commit in Git is an immutable snapshot of your files. But it also contains a metadata</tspan><tspan x="46" dy="20">pointer to its parent commit. This simple pointer structure forms a Directed Acyclic Graph.</tspan></text>
+      </g>
+    
+      <!-- Card: card-bottom-content -->
+      <g>
+        <rect x="30" y="136" width="1140" height="120" rx="8" fill="rgba(236, 72, 153, 0.12)" stroke="#ec4899" stroke-width="2" />
+        <rect x="30" y="136" width="1140" height="120" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <text x="46" y="168" fill="#ec4899" font-family="monospace" font-size="14" font-weight="bold">card-bottom-content</text>
+        <text x="46" y="186" fill="#8a8a9a" font-family="sans-serif" font-size="11">1140px x 120px</text>
+        
+      </g>
+    
+      
+      <!-- Custom Connections & Arrows -->
+      
+    </svg>
+  </div>
+</body>
+</html>

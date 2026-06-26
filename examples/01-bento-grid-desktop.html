@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plotter Layout View - 01-bento-grid-desktop.html</title>
+  <style>
+    body {
+      background-color: #0c0c14;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #38bdf8;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #8a8a9a;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .canvas-container {
+      background: radial-gradient(circle at center, #141424 0%, #0e0e16 100%);
+      border: 1px solid #2d2d3d;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      padding: 10px;
+      overflow: auto;
+    }
+    svg {
+      display: block;
+      background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px),
+                  repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px);
+    }
+  </style>
+</head>
+<body>
+  <h1>Plotter Layout Solver Preview</h1>
+  <p>Previewing resolved boxes for <strong>01-bento-grid-desktop.html</strong> (1920px x 1080px)</p>
+  <div class="canvas-container">
+    <svg width="1920" height="1080" viewBox="0 0 1920 1080">
+      <!-- Grid Background -->
+      <rect width="100%" height="100%" fill="none" />
+      
+      <!-- Resolved Elements -->
+      
+      <!-- Card: main-feature-card -->
+      <g>
+        <rect x="24" y="24" width="1123.2" height="1032" rx="8" fill="rgba(245, 166, 35, 0.12)" stroke="#F5A623" stroke-width="2" />
+        <rect x="24" y="24" width="1123.2" height="1032" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <text x="40" y="56" fill="#F5A623" font-family="monospace" font-size="14" font-weight="bold">main-feature-card</text>
+        <text x="40" y="74" fill="#8a8a9a" font-family="sans-serif" font-size="11">1123px x 1032px</text>
+        
+      </g>
+    
+      <!-- Card: right-stack-container -->
+      <g>
+        <rect x="1163.2" y="24" width="748.8000000000001" height="1032" rx="8" fill="rgba(80, 80, 104, 0.15)" stroke="#505068" stroke-width="2" />
+        <rect x="1163.2" y="24" width="748.8000000000001" height="1032" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <text x="1179.2" y="56" fill="#505068" font-family="monospace" font-size="14" font-weight="bold">right-stack-container</text>
+        <text x="1179.2" y="74" fill="#8a8a9a" font-family="sans-serif" font-size="11">749px x 1032px</text>
+        
+      </g>
+    
+      <!-- Card: sub-card-top -->
+      <g>
+        <rect x="1163.2" y="24" width="748.8000000000001" height="508" rx="8" fill="rgba(236, 72, 153, 0.12)" stroke="#ec4899" stroke-width="2" />
+        <rect x="1163.2" y="24" width="748.8000000000001" height="508" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <text x="1179.2" y="56" fill="#ec4899" font-family="monospace" font-size="14" font-weight="bold">sub-card-top</text>
+        <text x="1179.2" y="74" fill="#8a8a9a" font-family="sans-serif" font-size="11">749px x 508px</text>
+        
+      </g>
+    
+      <!-- Card: sub-card-bottom -->
+      <g>
+        <rect x="1163.2" y="548" width="748.8000000000001" height="508" rx="8" fill="rgba(236, 72, 153, 0.12)" stroke="#ec4899" stroke-width="2" />
+        <rect x="1163.2" y="548" width="748.8000000000001" height="508" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+        <text x="1179.2" y="580" fill="#ec4899" font-family="monospace" font-size="14" font-weight="bold">sub-card-bottom</text>
+        <text x="1179.2" y="598" fill="#8a8a9a" font-family="sans-serif" font-size="11">749px x 508px</text>
+        
+      </g>
+    
+      
+      <!-- Custom Connections & Arrows -->
+      
+    </svg>
+  </div>
+</body>
+</html>

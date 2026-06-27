@@ -16,118 +16,111 @@
     • resolveLayout() turns it into absolute {x, y, w, h} boxes.
     • You draw those boxes however you like — here, as SVG.
     • Because you own the coordinates, drawing CONNECTORS between cards is
-      trivial (we route bezier arrows between box centers/edges).
-    • Drag the ◢ corner: the SAME tree is re-resolved at the new size and the
+      trivial (we route bezier arrows between box edges).
+    • Drag the corner: the SAME tree is re-resolved at the new size and the
       whole thing reflows — boxes move, the arrows follow. That is the engine.
 
   Read drawScene() at the bottom — that ~40-line function is the entire
   integration. Everything else is page chrome.
 -->
 
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/@canwork/boxwood/dist/boxwood.global.js"></script>
 
 <style>
   :root {
-    --bg: #0c0c14;
-    --panel: #141424;
-    --line: #2d2d3d;
-    --text: #e2e8f0;
-    --muted: #8a8a9a;
-    --accent: #38bdf8;
-    --gold: #f5a623;
-    --pink: #ec4899;
-    --green: #4ade80;
+    --paper:#F0EDE8; --ivory:#FAF9F7; --carbon:#141414; --fog:#888888;
+    --line:#DAD3C7; --amber:#C98A2E; --ember:#C96B3A; --signal:#3A86CF;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --body:'DM Sans', system-ui, sans-serif;
+    --display:'Playfair Display', Georgia, serif;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    padding: 32px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
+    margin: 0; background: var(--paper); color: var(--carbon);
+    font-family: var(--body); font-weight: 300;
+    padding: 44px 28px 60px; display: flex; flex-direction: column; align-items: center; gap: 18px;
   }
-  header { text-align: center; max-width: 720px; }
-  h1 { color: var(--accent); margin: 0 0 6px; font-size: 26px; letter-spacing: -0.5px; }
-  header p { color: var(--muted); margin: 0; font-size: 14px; line-height: 1.5; }
-  code { color: var(--gold); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  header { max-width: 720px; width: 100%; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--amber); display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  }
+  .eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  h1 {
+    font-family: var(--display); font-weight: 700; color: var(--carbon);
+    font-size: clamp(26px, 4.5vw, 38px); letter-spacing: -0.01em; line-height: 1.08; margin: 0 0 12px;
+  }
+  header p { color: #5a5a52; margin: 0; font-size: 14px; line-height: 1.65; max-width: 640px; }
+  header p code, footer code {
+    font-family: var(--mono); font-size: 0.86em; color: var(--ember); background: #fff;
+    border: 1px solid var(--line); border-radius: 2px; padding: 1px 5px;
+  }
+  header strong { font-weight: 500; color: var(--carbon); }
+  .controls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
   .controls button {
-    background: var(--panel);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 7px 14px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: border-color .15s, color .15s;
+    background: transparent; color: var(--fog); border: 1px solid var(--line);
+    border-radius: 2px; padding: 7px 13px; font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; font-family: var(--mono); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; transition: all .18s;
   }
-  .controls button:hover { border-color: var(--accent); color: var(--accent); }
-
-  #readout { color: var(--muted); font-size: 13px; font-family: ui-monospace, monospace; }
-
-  /* The resizable viewport. The drag handle lives in its bottom-right corner. */
+  .controls button:hover { color: var(--carbon); border-color: #C7BFB0; }
+  .controls button i { font-size: 12px; }
+  #readout { color: var(--fog); font-size: 11px; letter-spacing: 0.04em; font-family: var(--mono); }
   #stage {
-    position: relative;
-    background: radial-gradient(circle at center, #141424 0%, #0e0e16 100%);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 24px 50px rgba(0,0,0,0.55);
+    position: relative; background: var(--ivory);
+    border: 1px solid var(--line); border-radius: 5px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 40px -24px rgba(20,20,20,0.35);
     overflow: hidden;
   }
   #stage svg {
     display: block;
     background:
-      repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px),
-      repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px);
+      repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(20,20,20,0.035) 24px),
+      repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(20,20,20,0.035) 24px);
   }
   #handle {
-    position: absolute;
-    right: 0; bottom: 0;
-    width: 26px; height: 26px;
-    cursor: nwse-resize;
-    color: var(--accent);
-    display: grid; place-items: center;
-    font-size: 14px;
-    user-select: none;
-    touch-action: none;
+    position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; cursor: nwse-resize;
+    color: var(--amber); display: grid; place-items: center; font-size: 11px;
+    user-select: none; touch-action: none; opacity: 0.7; transition: opacity .15s;
   }
-  footer { color: var(--muted); font-size: 12px; max-width: 720px; text-align: center; line-height: 1.6; }
+  #handle:hover { opacity: 1; }
+  footer { color: var(--fog); font-size: 12px; max-width: 680px; text-align: center; line-height: 1.7; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Boxwood — One Tree In, Live Layout Out</h1>
+  <div class="eyebrow">Boxwood · Layout Engine</div>
+  <h1>One Tree In, Live Layout Out</h1>
   <p>
     A single declarative tree (<code>cols / rows / gap / padding</code>) is resolved into
     absolute <code>{x, y, w, h}</code> boxes and drawn as SVG. Because you own the
-    coordinates, the bezier connectors are trivial to route. <strong>Drag the ◢ corner</strong> —
+    coordinates, the bezier connectors are trivial to route. <strong>Drag the corner</strong> —
     the same tree re-resolves and the whole composition reflows.
   </p>
 </header>
 
 <div class="controls">
-  <button data-w="900" data-h="540">🖥️ Desktop</button>
-  <button data-w="620" data-h="560">💻 Tablet</button>
-  <button data-w="380" data-h="640">📱 Phone</button>
+  <button data-w="900" data-h="540"><i class="fa-solid fa-desktop"></i> Desktop</button>
+  <button data-w="620" data-h="560"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</button>
+  <button data-w="380" data-h="640"><i class="fa-solid fa-mobile-screen-button"></i> Phone</button>
 </div>
 
 <div id="readout"></div>
 
 <div id="stage">
-  <div id="handle">◢</div>
+  <div id="handle"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div>
 </div>
 
 <footer>
-  This page has no build step — it loads <code>@canwork/boxwood</code> from a CDN and calls
-  <code>resolveLayout()</code> on every resize. View source: the entire integration is the
-  <code>drawScene()</code> function. To see how you'd wire this into a real TypeScript project,
-  read the <code>*.scene.ts</code> files and run <code>npx tsx examples/build.ts</code>.
+  No build step — this page loads <code>@canwork/boxwood</code> from a CDN and calls
+  <code>resolveLayout()</code> on every resize. The whole integration is the
+  <code>drawScene()</code> function in this file's source. For the TypeScript version,
+  see the <code>*.scene.ts</code> files and run <code>npx tsx examples/build.ts</code>.
 </footer>
 
 <script>
@@ -136,6 +129,16 @@
  * ════════════════════════════════════════════════════════════════════════════ */
 
 const { resolveLayout, defaultMeasure } = Boxwood;
+
+/** Brand palette (CanWork Studios, light mode): a restrained amber/ember/signal trio. */
+const TONES = {
+  header:   { stroke: "#3A86CF", fill: "rgba(74,158,232,0.14)" },
+  ingest:   { stroke: "#C98A2E", fill: "rgba(232,164,74,0.16)" },
+  transform:{ stroke: "#C96B3A", fill: "rgba(201,107,58,0.14)" },
+  publish:  { stroke: "#3A86CF", fill: "rgba(74,158,232,0.14)" },
+  summary:  { stroke: "#5A5A52", fill: "rgba(42,42,42,0.05)" },
+};
+const INK = "#141414", LABEL = "#5A5A52";
 
 /**
  * A measure hook makes a card grow to fit real text (auto-height). Boxwood
@@ -155,19 +158,12 @@ function label(text, fontSize = 14) {
  * responsive breakpoint, expressed declaratively.
  */
 function buildTree(orientation) {
-  const stage = (id, title) => ({
-    id,
-    style: { padding: 14 },
-    measure: label(title, 15),
-  });
+  const stage = (id, title) => ({ id, style: { padding: 14 }, measure: label(title, 15) });
 
   const stages = {
     style: { w: "100%", h: "100%" },
     // ── the responsive switch: cols on wide screens, rows on tall ones ──
-    split:
-      orientation === "wide"
-        ? { cols: 3, gap: 16 }
-        : { rows: 3, gap: 16 },
+    split: orientation === "wide" ? { cols: 3, gap: 16 } : { rows: 3, gap: 16 },
     children: [
       stage("ingest", "1 · Ingest  —  pull raw events from the queue"),
       stage("transform", "2 · Transform  —  normalize, enrich, and validate each record"),
@@ -177,7 +173,7 @@ function buildTree(orientation) {
 
   return {
     style: { padding: 20 },
-    split: { rows: ["72px", "auto", "64px"], gap: 16 },
+    split: { rows: ["72px", "auto", "60px"], gap: 16 },
     children: [
       { id: "header", style: { padding: 16 }, measure: label("Event Pipeline — live status", 20) },
       stages,
@@ -187,28 +183,20 @@ function buildTree(orientation) {
 }
 
 /** Geometry helpers — you own the coordinates, so connectors are just math. */
-function centerRight(b) { return { x: b.x + b.w, y: b.y + b.h / 2 }; }
-function centerLeft(b)  { return { x: b.x,       y: b.y + b.h / 2 }; }
-function centerTop(b)   { return { x: b.x + b.w / 2, y: b.y }; }
-function centerBottom(b){ return { x: b.x + b.w / 2, y: b.y + b.h }; }
+const centerRight = (b) => ({ x: b.x + b.w, y: b.y + b.h / 2 });
+const centerLeft  = (b) => ({ x: b.x,       y: b.y + b.h / 2 });
+const centerTop   = (b) => ({ x: b.x + b.w / 2, y: b.y });
+const centerBottom= (b) => ({ x: b.x + b.w / 2, y: b.y + b.h });
 
 /** Bezier path between two cards, picking horizontal vs vertical from layout. */
 function connector(a, b, horizontal) {
   const from = horizontal ? centerRight(a) : centerBottom(a);
   const to   = horizontal ? centerLeft(b)  : centerTop(b);
-  const dx = (to.x - from.x), dy = (to.y - from.y);
+  const dx = to.x - from.x, dy = to.y - from.y;
   const c1 = horizontal ? { x: from.x + dx * 0.5, y: from.y } : { x: from.x, y: from.y + dy * 0.5 };
   const c2 = horizontal ? { x: to.x   - dx * 0.5, y: to.y }   : { x: to.x,   y: to.y   - dy * 0.5 };
   return `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`;
 }
-
-const COLORS = {
-  header:   { stroke: "#38bdf8", fill: "rgba(56,189,248,0.12)" },
-  ingest:   { stroke: "#f5a623", fill: "rgba(245,166,35,0.12)" },
-  transform:{ stroke: "#4ade80", fill: "rgba(74,222,128,0.12)" },
-  publish:  { stroke: "#ec4899", fill: "rgba(236,72,153,0.12)" },
-  summary:  { stroke: "#8a8a9a", fill: "rgba(138,138,154,0.12)" },
-};
 
 /**
  * drawScene(viewport) — resolve the tree at the current size, then render.
@@ -220,7 +208,6 @@ function drawScene({ w, h }) {
 
   // 1) Resolve. Out comes a flat list of boxes with absolute coordinates.
   const { boxes } = resolveLayout(tree, { x: 0, y: 0, w, h }, { measure: defaultMeasure });
-
   const byId = (id) => boxes.find((n) => n.node.id === id)?.box;
 
   // 2) Draw each leaf card from its resolved box.
@@ -228,17 +215,18 @@ function drawScene({ w, h }) {
   for (const node of boxes) {
     if (node.children && node.children.length) continue; // skip layout containers
     const { x, y, w: bw, h: bh } = node.box;
-    const c = COLORS[node.node.id] || { stroke: "#505068", fill: "rgba(80,80,104,0.15)" };
+    const c = TONES[node.node.id] || TONES.summary;
     const lines = (node.textLayout?.lines ?? [])
       .map((ln, i) => `<tspan x="${x + 14}" dy="${i === 0 ? 0 : 18}">${esc(ln)}</tspan>`)
       .join("");
     cards += `
       <g>
-        <rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="10"
-              fill="${c.fill}" stroke="${c.stroke}" stroke-width="2" />
-        <text x="${x + 14}" y="${y + 24}" fill="${c.stroke}"
-              font-family="ui-monospace, monospace" font-size="11" font-weight="700">${esc(node.node.id)}</text>
-        <text x="${x + 14}" y="${y + 44}" fill="#e2e8f0" font-family="sans-serif" font-size="13">${lines}</text>
+        <rect x="${x + 0.75}" y="${y + 0.75}" width="${bw - 1.5}" height="${bh - 1.5}" rx="4"
+              fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5" />
+        <text x="${x + 14}" y="${y + 22}" fill="${c.stroke}"
+              font-family="'JetBrains Mono', monospace" font-size="10.5" font-weight="500"
+              letter-spacing="0.06em">${esc(node.node.id.toUpperCase())}</text>
+        <text x="${x + 14}" y="${y + 42}" fill="${INK}" font-family="'DM Sans', sans-serif" font-size="13">${lines}</text>
       </g>`;
   }
 
@@ -248,8 +236,8 @@ function drawScene({ w, h }) {
   let arrows = "";
   if (a && b && c) {
     arrows = [connector(a, b, horizontal), connector(b, c, horizontal)]
-      .map((d) => `<path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2"
-                         stroke-dasharray="6 5" marker-end="url(#arrow)" opacity="0.9" />`)
+      .map((d) => `<path d="${d}" fill="none" stroke="#C98A2E" stroke-width="1.75"
+                         stroke-dasharray="5 4" marker-end="url(#arrow)" opacity="0.8" />`)
       .join("");
   }
 
@@ -257,7 +245,7 @@ function drawScene({ w, h }) {
     <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#C98A2E" />
         </marker>
       </defs>
       ${cards}
@@ -272,15 +260,15 @@ function esc(s) {
 /* ── page chrome: wire up the resize handle + presets, call drawScene() ── */
 (function () {
   const stage = document.getElementById("stage");
-  const handle = document.getElementById("handle");
   const readout = document.getElementById("readout");
+  const HANDLE = '<div id="handle"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div>';
   const MIN = { w: 320, h: 360 }, MAX = { w: 1000, h: 760 };
   let w = 900, h = 540;
 
   function render() {
     stage.style.width = w + "px";
     stage.style.height = h + "px";
-    stage.innerHTML = drawScene({ w, h }) + '<div id="handle">◢</div>';
+    stage.innerHTML = drawScene({ w, h }) + HANDLE;
     document.getElementById("handle").addEventListener("pointerdown", onDown);
     readout.textContent =
       `viewport ${Math.round(w)} × ${Math.round(h)} px — ${w >= h ? "wide → columns" : "tall → rows"}`;
@@ -289,7 +277,7 @@ function esc(s) {
   let drag = null;
   function onDown(e) {
     drag = { x: e.clientX, y: e.clientY, w, h };
-    e.target.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
   }
   window.addEventListener("pointermove", (e) => {

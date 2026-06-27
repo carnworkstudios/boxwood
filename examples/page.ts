@@ -32,54 +32,80 @@ export function writePage(opts: PageOpts): void {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Boxwood — ${esc(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <style>
-  :root { --bg:#0c0c14; --panel:#141424; --line:#2d2d3d; --text:#e2e8f0; --muted:#8a8a9a; --accent:#38bdf8; }
+  :root {
+    --paper:#F0EDE8; --ivory:#FAF9F7; --carbon:#141414; --ink:#1E1E1E;
+    --fog:#888888; --line:#DAD3C7; --amber:#C98A2E; --amber-pure:#E8A44A;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --body:'DM Sans', system-ui, sans-serif;
+    --display:'Playfair Display', Georgia, serif;
+  }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+    margin: 0; background: var(--paper); color: var(--carbon);
+    font-family: var(--body); font-weight: 300;
+    padding: 40px 28px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px;
   }
-  header { text-align: center; max-width: 760px; }
-  h1 { color: var(--accent); margin: 0 0 6px; font-size: 22px; letter-spacing: -0.4px; }
-  header p { color: var(--muted); margin: 0; font-size: 14px; line-height: 1.55; }
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  header { max-width: 720px; width: 100%; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--amber); display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  h1 {
+    font-family: var(--display); font-weight: 700; color: var(--carbon);
+    font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.01em; line-height: 1.1; margin: 0 0 10px;
+  }
+  header p { color: #5a5a52; margin: 0; font-size: 14px; line-height: 1.65; max-width: 640px; }
+  .controls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
   .controls button {
-    background: var(--panel); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer;
-    transition: border-color .15s, color .15s;
+    background: transparent; color: var(--fog); border: 1px solid var(--line);
+    border-radius: 2px; padding: 7px 13px; font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; font-family: var(--mono); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; transition: all .18s;
   }
-  .controls button:hover { border-color: var(--accent); color: var(--accent); }
-  #readout { color: var(--muted); font-size: 13px; font-family: ui-monospace, monospace; }
+  .controls button:hover { color: var(--carbon); border-color: #C7BFB0; }
+  .controls button i { font-size: 12px; }
+  #readout {
+    color: var(--fog); font-size: 11px; letter-spacing: 0.04em; font-family: var(--mono);
+  }
   #stage {
-    position: relative; background: radial-gradient(circle at center, #141424 0%, #0e0e16 100%);
-    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 50px rgba(0,0,0,.55); overflow: hidden;
+    position: relative; background: var(--ivory);
+    border: 1px solid var(--line); border-radius: 5px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 40px -24px rgba(20,20,20,0.35);
+    overflow: hidden;
   }
   #stage svg {
     display: block;
     background:
-      repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,.03) 20px),
-      repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,.03) 20px);
+      repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(20,20,20,0.035) 24px),
+      repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(20,20,20,0.035) 24px);
   }
   #handle {
-    position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; cursor: nwse-resize;
-    color: var(--accent); display: grid; place-items: center; font-size: 14px;
-    user-select: none; touch-action: none;
+    position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; cursor: nwse-resize;
+    color: var(--amber); display: grid; place-items: center; font-size: 11px;
+    user-select: none; touch-action: none; opacity: 0.7; transition: opacity .15s;
   }
+  #handle:hover { opacity: 1; }
 </style>
 </head>
 <body>
 <header>
+  <div class="eyebrow">Boxwood · Layout Engine</div>
   <h1>${esc(title)}</h1>
   <p>${esc(description)}</p>
 </header>
 <div class="controls">
-  <button data-w="900" data-h="540">🖥️ Wide</button>
-  <button data-w="620" data-h="560">💻 Medium</button>
-  <button data-w="380" data-h="640">📱 Narrow</button>
+  <button data-w="900" data-h="540"><i class="fa-solid fa-desktop"></i> Wide</button>
+  <button data-w="620" data-h="560"><i class="fa-solid fa-tablet-screen-button"></i> Medium</button>
+  <button data-w="380" data-h="640"><i class="fa-solid fa-mobile-screen-button"></i> Narrow</button>
 </div>
 <div id="readout"></div>
-<div id="stage"><div id="handle">◢</div></div>
+<div id="stage"><div id="handle"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div></div>
 <script>
 ${bundleJs}
 </script>

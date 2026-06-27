@@ -15,16 +15,16 @@ const examples: { entry: string; out: string; title: string; description: string
   {
     entry: "01-bento-grid.scene.ts",
     out: "01-bento-grid.html",
-    title: "01 — Responsive Bento Grid",
+    title: "Responsive Bento Grid",
     description:
-      "splitGrid() carves the viewport into a cell grid; zones merge cells into a hero tile and a timeline strip. Each tile's text has a real measure hook with auto height, so resizing the panel reflows the grid AND grows every tile to fit its wrapped copy.",
+      "A fixed dashboard grid of weighted cells — one hero tile, four KPIs, a timeline strip. The grid keeps its proportions at every size; instead of growing the boxes, each tile shrinks its own text to fit its cell via shrinkToFit(), so nothing ever overflows or overlaps as you resize.",
     w: 900,
     h: 560,
   },
   {
     entry: "02-vector-connections.scene.ts",
     out: "02-vector-connections.html",
-    title: "02 — Branching Vector Connections",
+    title: "Branching Vector Connections",
     description:
       "A 1-source / 3-worker / 1-sink pipeline. Resize narrower than it is tall and the split flips from columns to rows; connect() picks facing edges from relative position alone, so the 6 curves stay correctly routed in both orientations. Card text grows its box via the engine's own auto-height, never overflowing.",
     w: 900,
@@ -33,7 +33,7 @@ const examples: { entry: string; out: string; title: string; description: string
   {
     entry: "03-absolute-to-responsive.scene.ts",
     out: "03-absolute-to-responsive.html",
-    title: "03 — Absolute PDF Spans → Responsive Reflow",
+    title: "Absolute PDF Spans, Made Responsive",
     description:
       "A PDF extract's absolute x/w spans are converted to percentage columns. Shrink the panel and the two-column body narrows while each paragraph rewraps into more and more lines — a live CSS-style column reflow driven by geometry derived once, up front.",
     w: 900,
@@ -42,7 +42,7 @@ const examples: { entry: string; out: string; title: string; description: string
   {
     entry: "04-dynamic-reflow-overflow.scene.ts",
     out: "04-dynamic-reflow-overflow.html",
-    title: "04 — Auto-Height, Overflow, and Collision Solving",
+    title: "Auto-Height, Overflow & Collision",
     description:
       "Top card has no height — it grows to contain its text at any width. Bottom card has a FIXED height; shrink the panel until the wrapped text can't fit and the engine reports a real OverflowSignal in a banner below. Two badges placed at the same coordinate get nudged apart by resolveCollisions.",
     w: 760,

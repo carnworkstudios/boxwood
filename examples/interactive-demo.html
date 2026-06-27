@@ -1,20 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plotter Layout Engine - Google Stitch Interactive Playground</title>
-  
-  <!-- Premium Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boxwood — Layout Engine Playground</title>
+
+  <!--
+    ──────────────────────────────────────────────────────────────────────────
+    BOXWOOD — INTERACTIVE PLAYGROUND
+    ──────────────────────────────────────────────────────────────────────────
+    The EXAMPLES (examples/*.html) show the design; this PLAYGROUND shows the
+    power: direct manipulation of the layout grammar.
+
+      • Pick a scenario (dashboard, node editor, generative grid, PDF reflow,
+        game HUD, brutalist poster) — each is one declarative Boxwood tree.
+      • Drag the gap / padding / ratio sliders, flip orientation, toggle the
+        collision solver — the tree re-resolves live.
+      • Drag the canvas corner to resize the world and watch it reflow.
+      • Read the absolute {x, y, w, h} the engine emits in the coordinate table,
+        and hover to cross-highlight a row with its box.
+      • Switch DARK (Stitch/Brutalist) ↔ LIGHT (CanWork Studios) themes.
+
+    This page loads the REAL engine from ../dist/boxwood.global.js — run
+    `npm run build:bundle` (or `npm run build:all`) first.
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Outfit:wght@400;600;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../dist/boxwood.global.js"></script>
 
   <style>
-    /* Google Stitch / Stark Brutalism Design Tokens */
+    /* ── Theme tokens. Dark (Stitch/Brutalist) is the default; .light is the
+         CanWork Studios skin. Same structure, different surface. ── */
     :root {
       --bg-color: #0b0c10;
       --panel-bg: #12131c;
+      --canvas-bg: #0d0d15;
       --border-color: #262936;
       --accent-gold: #ffc72c;
       --accent-cyan: #00f2fe;
@@ -22,913 +45,588 @@
       --accent-green: #38ef7d;
       --text-main: #f3f4f6;
       --text-muted: #858b9c;
+      --grid-line: rgba(255,255,255,0.035);
+      --panel-shadow: 10px 10px 0 rgba(0,0,0,0.45);
+      --card-shadow: rgba(0,0,0,0.6);
+      --row-hl: rgba(0,242,254,0.12);
       --stitch-border-width: 2px;
+      --font-title: 'Outfit', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+    }
+    body.light {
+      --bg-color: #F0EDE8;
+      --panel-bg: #FAF9F7;
+      --canvas-bg: #FCFBF9;
+      --border-color: #DAD3C7;
+      --accent-gold: #C98A2E;   /* amber  */
+      --accent-cyan: #3A86CF;   /* signal */
+      --accent-pink: #C96B3A;   /* ember  */
+      --accent-green: #6E8B3D;  /* olive  */
+      --text-main: #141414;
+      --text-muted: #7a766c;
+      --grid-line: rgba(20,20,20,0.05);
+      --panel-shadow: 8px 8px 0 rgba(20,20,20,0.10);
+      --card-shadow: rgba(20,20,20,0.12);
+      --row-hl: rgba(201,138,46,0.14);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background-color: var(--bg-color);
       color: var(--text-main);
-      font-family: 'Outfit', sans-serif;
+      font-family: var(--font-title);
       height: 100vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      transition: background-color .25s, color .25s;
     }
 
-    /* Grid Background Pattern */
     .grid-overlay {
-      position: absolute;
-      inset: 0;
-      background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
       background-size: 24px 24px;
-      z-index: 0;
-      pointer-events: none;
     }
 
-    /* Navbar */
+    /* Header */
     header {
       background: var(--panel-bg);
       border-bottom: var(--stitch-border-width) solid var(--border-color);
-      padding: 16px 32px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: relative;
-      z-index: 10;
+      padding: 14px 28px; display: flex; justify-content: space-between; align-items: center;
+      position: relative; z-index: 10;
     }
-
-    .logo-container {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
+    .logo-container { display: flex; align-items: center; gap: 12px; }
     .logo-badge {
-      background: var(--accent-cyan);
-      color: var(--bg-color);
-      font-family: 'IBM Plex Mono', monospace;
-      font-weight: 700;
-      font-size: 13px;
-      padding: 4px 8px;
-      border: 1px solid var(--bg-color);
-      box-shadow: 2px 2px 0 var(--border-color);
+      background: var(--accent-cyan); color: var(--bg-color);
+      font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+      padding: 4px 9px; border: 1px solid var(--bg-color); box-shadow: 2px 2px 0 var(--border-color);
+      letter-spacing: 0.5px;
     }
-
-    h1 {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.5px; }
+    body.light h1 { font-family: 'Playfair Display', serif; font-weight: 700; }
+    .header-right { display: flex; align-items: center; gap: 14px; }
+    .header-tag { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+    .theme-toggle {
+      background: transparent; border: 1px solid var(--border-color); color: var(--text-main);
+      width: 38px; height: 32px; cursor: pointer; display: grid; place-items: center;
+      font-size: 13px; transition: all .15s;
     }
+    .theme-toggle:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
 
-    /* Main Layout */
-    .main-container {
-      flex: 1;
-      display: flex;
-      position: relative;
-      z-index: 5;
-      height: calc(100vh - 64px);
-    }
+    /* Main split */
+    .main-container { flex: 1; display: flex; position: relative; z-index: 5; height: calc(100vh - 62px); }
 
-    /* Sidebar controls */
+    /* Sidebar */
     .sidebar {
-      width: 320px;
-      background: var(--panel-bg);
+      width: 320px; background: var(--panel-bg);
       border-right: var(--stitch-border-width) solid var(--border-color);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      overflow-y: auto;
+      padding: 20px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto;
     }
-
     .section-title {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.4px; color: var(--text-muted); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
     }
+    .section-title .hint { margin-left: auto; font-weight: 400; letter-spacing: 0.5px; text-transform: none; opacity: 0.7; }
 
+    .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .tab-button {
-      background: transparent;
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 14px 18px;
-      text-align: left;
-      font-family: 'Outfit', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      transition: all 0.15s ease;
-      position: relative;
+      background: transparent; border: 1px solid var(--border-color); color: var(--text-main);
+      padding: 11px 10px; text-align: left; font-family: var(--font-title); font-size: 12.5px;
+      font-weight: 600; cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+      transition: all 0.15s ease; position: relative; min-height: 60px;
     }
+    .tab-button i { font-size: 13px; color: var(--text-muted); margin-bottom: 2px; }
+    .tab-button:hover { border-color: var(--text-muted); }
+    .tab-button.active { background: var(--bg-color); border: 2px solid var(--accent-cyan); }
+    .tab-button.active i { color: var(--accent-cyan); }
+    .tab-button.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-cyan); }
+    .tab-desc { font-size: 10px; font-weight: 400; color: var(--text-muted); line-height: 1.3; }
 
-    .tab-button:hover {
-      border-color: var(--text-muted);
-      background: rgba(255, 255, 255, 0.02);
+    /* Controls */
+    .control { margin-bottom: 14px; }
+    .control-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .control-head label { font-family: var(--font-mono); font-size: 11px; color: var(--text-main); }
+    .control-head .val { font-family: var(--font-mono); font-size: 11px; color: var(--accent-gold); font-weight: 700; }
+    input[type=range] { width: 100%; accent-color: var(--accent-gold); cursor: pointer; height: 4px; }
+    .seg { display: flex; border: 1px solid var(--border-color); }
+    .seg button {
+      flex: 1; background: transparent; border: none; border-right: 1px solid var(--border-color);
+      color: var(--text-muted); font-family: var(--font-mono); font-size: 10.5px; padding: 6px 4px;
+      cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all .12s;
     }
+    .seg button:last-child { border-right: none; }
+    .seg button.on { background: var(--accent-gold); color: var(--bg-color); font-weight: 700; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-row label { font-family: var(--font-mono); font-size: 11px; }
+    .switch { width: 42px; height: 22px; border: 1px solid var(--border-color); background: var(--bg-color); cursor: pointer; position: relative; transition: all .15s; }
+    .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--text-muted); transition: all .15s; }
+    .switch.on { border-color: var(--accent-green); }
+    .switch.on::after { left: 22px; background: var(--accent-green); }
 
-    .tab-button.active {
-      background: var(--bg-color);
-      border: 2px solid var(--accent-cyan);
-      box-shadow: 4px 4px 0 rgba(0, 242, 254, 0.15);
-    }
+    /* Stats */
+    .stats-card { background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px 14px; font-family: var(--font-mono); font-size: 11px; display: flex; flex-direction: column; gap: 7px; }
+    .stat-row { display: flex; justify-content: space-between; }
+    .stat-val { color: var(--accent-gold); font-weight: 700; }
+    .stat-val.warn { color: var(--accent-pink); }
 
-    .tab-button.active::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: var(--accent-cyan);
-    }
-
-    .tab-desc {
-      font-size: 11px;
-      font-weight: 400;
-      color: var(--text-muted);
-    }
-
-    /* Sandbox Canvas Area */
-    .sandbox-area {
-      flex: 1;
-      padding: 40px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
+    /* Canvas area */
+    .sandbox-area { flex: 1; padding: 28px 32px; display: flex; flex-direction: column; align-items: center; position: relative; overflow-y: auto; }
     .canvas-title-bar {
-      width: 100%;
-      max-width: 900px;
-      background: var(--panel-bg);
-      border: var(--stitch-border-width) solid var(--border-color);
-      border-bottom: none;
-      padding: 12px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      color: var(--text-muted);
+      width: 100%; max-width: 920px; background: var(--panel-bg);
+      border: var(--stitch-border-width) solid var(--border-color); border-bottom: none;
+      padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);
     }
+    .size-presets { display: flex; gap: 6px; }
+    .size-presets button { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; cursor: pointer; transition: all .12s; }
+    .size-presets button:hover { color: var(--accent-cyan); border-color: var(--accent-cyan); }
+    .canvas-dimensions { color: var(--accent-cyan); font-weight: 700; }
 
-    .canvas-dimensions {
-      color: var(--accent-cyan);
-      font-weight: 700;
-    }
-
-    /* Resizeable Wrapper Box */
     .resizable-container {
-      width: 800px;
-      height: 500px;
-      min-width: 320px;
-      min-height: 280px;
-      max-width: 900px;
-      max-height: 600px;
-      background: #0d0d15;
-      border: var(--stitch-border-width) solid var(--border-color);
-      position: relative;
-      display: flex;
-      align-items: stretch;
-      justify-content: stretch;
-      box-shadow: 10px 10px 0px rgba(0,0,0,0.4);
+      width: 820px; height: 500px; min-width: 320px; min-height: 280px; max-width: 920px; max-height: 600px;
+      background: var(--canvas-bg); border: var(--stitch-border-width) solid var(--border-color);
+      position: relative; box-shadow: var(--panel-shadow);
     }
-
-    /* Handle styling (Brutalism corner block) */
     .resize-handle {
-      position: absolute;
-      width: 24px;
-      height: 24px;
-      right: -2px;
-      bottom: -2px;
-      background: var(--accent-cyan);
-      border: var(--stitch-border-width) solid var(--bg-color);
-      cursor: nwse-resize;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: absolute; width: 22px; height: 22px; right: -2px; bottom: -2px;
+      background: var(--accent-cyan); border: var(--stitch-border-width) solid var(--bg-color);
+      cursor: nwse-resize; z-index: 100; display: grid; place-items: center; color: var(--bg-color); font-size: 10px;
     }
+    svg#svg-canvas { width: 100%; height: 100%; background: transparent; user-select: none; display: block; }
+    .layout-card .panel { transition: stroke-width .1s; }
+    .layout-card.hl .panel { stroke-width: 4; }
 
-    .resize-handle::after {
-      content: '';
-      width: 8px;
-      height: 8px;
-      border-right: 2px solid var(--bg-color);
-      border-bottom: 2px solid var(--bg-color);
-    }
+    .resize-tip { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-top: 30px; }
 
-    svg {
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      user-select: none;
-    }
-
-    /* Visualizer Stats card */
-    .stats-card {
-      background: var(--panel-bg);
-      border: var(--stitch-border-width) solid var(--border-color);
-      padding: 16px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .stat-val {
-      color: var(--accent-gold);
-      font-weight: 700;
-    }
-
-    /* Instructions overlay */
-    .resize-tip {
-      position: absolute;
-      bottom: -32px;
-      left: 0;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    /* Coordinate inspector table */
+    .coord-panel { width: 100%; max-width: 920px; margin-top: 18px; border: var(--stitch-border-width) solid var(--border-color); background: var(--panel-bg); }
+    .coord-panel .ch { padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
+    .coord-scroll { max-height: 168px; overflow-y: auto; }
+    table.coord { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+    table.coord th { text-align: right; padding: 6px 14px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-size: 9.5px; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; background: var(--panel-bg); }
+    table.coord th:first-child, table.coord td:first-child { text-align: left; }
+    table.coord td { padding: 5px 14px; text-align: right; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+    table.coord tr[data-id] { cursor: pointer; }
+    table.coord tr.hl td { background: var(--row-hl); }
+    table.coord td .dot { display: inline-block; width: 8px; height: 8px; margin-right: 7px; vertical-align: middle; }
+    table.coord td.idc { color: var(--text-main); font-weight: 500; }
   </style>
 </head>
 <body>
   <div class="grid-overlay"></div>
 
-  <!-- Header -->
   <header>
     <div class="logo-container">
-      <span class="logo-badge">STITCH</span>
-      <h1>Plotter Layout Solver Playground</h1>
+      <span class="logo-badge">BOXWOOD</span>
+      <h1>Layout Engine Playground</h1>
     </div>
-    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted)">
-      Interactive Responsive Web Graphics
+    <div class="header-right">
+      <span class="header-tag" id="engine-tag">engine: ../dist/boxwood.global.js</span>
+      <button class="theme-toggle" id="theme-toggle" title="Toggle dark / light">
+        <i class="fa-solid fa-moon"></i>
+      </button>
     </div>
   </header>
 
-  <!-- Content Container -->
   <div class="main-container">
-    
-    <!-- Left Sidebar -->
+    <!-- Sidebar -->
     <div class="sidebar">
       <div>
-        <div class="section-title">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="display:inline"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
-          Select Layout Scenario
+        <div class="section-title"><i class="fa-solid fa-shapes"></i> Scenario</div>
+        <div class="demo-grid" id="demo-grid"><!-- buttons injected --></div>
+      </div>
+
+      <div>
+        <div class="section-title"><i class="fa-solid fa-sliders"></i> Direct Manipulation</div>
+        <div class="control">
+          <div class="control-head"><label>Gap</label><span class="val" id="v-gap">16</span></div>
+          <input type="range" id="c-gap" min="0" max="60" value="16" />
         </div>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <button class="tab-button active" onclick="switchDemo('bento')">
-            <span>01. Responsive Bento Grid</span>
-            <span class="tab-desc">Auto-collapse grid splits when viewport shrinks</span>
-          </button>
-          
-          <button class="tab-button" onclick="switchDemo('pipeline')">
-            <span>02. Dynamic Vector Flow</span>
-            <span class="tab-desc">Curve connections recalculate in real-time</span>
-          </button>
-          
-          <button class="tab-button" onclick="switchDemo('pdf')">
-            <span>03. PDF Spans reflow</span>
-            <span class="tab-desc">Scale raw absolute coordinates cleanly</span>
-          </button>
-          
-          <button class="tab-button" onclick="switchDemo('reflow')">
-            <span>04. Text wrapping solver</span>
-            <span class="tab-desc">Growing text shifts downstream cards down</span>
-          </button>
+        <div class="control">
+          <div class="control-head"><label>Root padding</label><span class="val" id="v-pad">24</span></div>
+          <input type="range" id="c-pad" min="0" max="48" value="24" />
+        </div>
+        <div class="control">
+          <div class="control-head"><label>Split ratio</label><span class="val" id="v-ratio">58%</span></div>
+          <input type="range" id="c-ratio" min="20" max="80" value="58" />
+        </div>
+        <div class="control">
+          <div class="control-head"><label>Orientation</label></div>
+          <div class="seg" id="c-orient">
+            <button data-o="auto" class="on">Auto</button>
+            <button data-o="cols">Cols</button>
+            <button data-o="rows">Rows</button>
+          </div>
+        </div>
+        <div class="control toggle-row">
+          <label>Collision solver</label>
+          <div class="switch on" id="c-collide"></div>
         </div>
       </div>
 
       <div style="margin-top: auto;">
-        <div class="section-title">Layout Solver Stats</div>
+        <div class="section-title"><i class="fa-solid fa-wave-square"></i> Solver Stats</div>
         <div class="stats-card">
-          <div class="stat-row">
-            <span>Resolved Nodes:</span>
-            <span id="stat-resolved-count" class="stat-val">0</span>
-          </div>
-          <div class="stat-row">
-            <span>Overflow signals:</span>
-            <span id="stat-overflow" class="stat-val">None</span>
-          </div>
-          <div class="stat-row">
-            <span>Collision solver:</span>
-            <span id="stat-collisions" class="stat-val">Active</span>
-          </div>
+          <div class="stat-row"><span>Resolved nodes</span><span id="stat-count" class="stat-val">0</span></div>
+          <div class="stat-row"><span>Overflow signals</span><span id="stat-overflow" class="stat-val">None</span></div>
+          <div class="stat-row"><span>Collision solver</span><span id="stat-collide" class="stat-val">On</span></div>
         </div>
       </div>
     </div>
 
-    <!-- Right Canvas Area -->
+    <!-- Canvas -->
     <div class="sandbox-area">
-      <!-- Title bar showing current width/height -->
-      <div class="canvas-title-bar">
-        <span>LAYOUT CANVAS PREVIEW</span>
-        <span>SIZE: <span id="canvas-w" class="canvas-dimensions">800</span>px × <span id="canvas-h" class="canvas-dimensions">500</span>px</span>
+      <div class="canvas-title-bar" style="max-width:920px">
+        <span id="canvas-name">LAYOUT CANVAS</span>
+        <div class="size-presets">
+          <button data-w="820" data-h="500">Desktop</button>
+          <button data-w="560" data-h="540">Tablet</button>
+          <button data-w="360" data-h="560">Phone</button>
+          <span style="margin-left:8px">SIZE <span id="canvas-w" class="canvas-dimensions">820</span>×<span id="canvas-h" class="canvas-dimensions">500</span></span>
+        </div>
       </div>
 
-      <!-- Resizable viewport panel -->
       <div class="resizable-container" id="resizable-box">
-        <!-- SVG rendering canvas -->
-        <svg id="svg-canvas" viewBox="0 0 800 500" preserveAspectRatio="none">
-          <!-- Dynamically populated elements -->
-        </svg>
+        <svg id="svg-canvas" viewBox="0 0 820 500" preserveAspectRatio="none"></svg>
+        <div class="resize-handle" id="handle"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div>
+      </div>
 
-        <!-- Resize Handle -->
-        <div class="resize-handle" id="handle"></div>
+      <div class="resize-tip">
+        <i class="fa-solid fa-arrows-up-down-left-right"></i>
+        Drag the corner to resize the world — or drag the sliders to reshape the tree.
+      </div>
 
-        <div class="resize-tip">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(45deg); display:inline;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          Drag corner handle to test real-time responsiveness & reflow
+      <!-- Coordinate inspector: the engine's actual {x,y,w,h} output -->
+      <div class="coord-panel">
+        <div class="ch section-title" style="margin:0">
+          <i class="fa-solid fa-table-list"></i> Resolved Coordinates
+          <span class="hint">absolute {x, y, w, h} · hover to highlight</span>
+        </div>
+        <div class="coord-scroll">
+          <table class="coord">
+            <thead><tr><th>id</th><th>x</th><th>y</th><th>w</th><th>h</th></tr></thead>
+            <tbody id="coord-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- Inline self-contained Layout Engine Solver -->
   <script>
-    // ── Pure-JS layout engine implementation ─────────────────────────────────
-    
-    function resolveSides(s) {
-      if (s === undefined) return { top: 0, right: 0, bottom: 0, left: 0 };
-      if (typeof s === "number") return { top: s, right: s, bottom: s, left: s };
-      return { top: s.top ?? 0, right: s.right ?? 0, bottom: s.bottom ?? 0, left: s.left ?? 0 };
-    }
+  /* ════════════════════════════════════════════════════════════════════════
+   *  Boxwood is loaded as a global. The playground only ever calls
+   *  resolveLayout() — everything below builds trees and draws boxes.
+   * ════════════════════════════════════════════════════════════════════════ */
+  const { resolveLayout, defaultMeasure } = Boxwood;
 
-    function resolveLen(v, parentSize, defaultVal) {
-      if (v === undefined) return defaultVal;
-      if (v === "auto") return defaultVal;
-      if (typeof v === "number") return v;
-      const pct = parseFloat(v);
-      if (typeof v === "string" && v.endsWith("%") && !isNaN(pct)) return (pct / 100) * parentSize;
-      return defaultVal;
-    }
-
-    function resolveColWidths(spec, parentW, gap) {
-      if (typeof spec === "number") {
-        const n = Math.max(1, spec);
-        const colW = (parentW - gap * (n - 1)) / n;
-        return Array.from({ length: n }, (_, i) => ({ w: colW, kind: "fixed", idx: i }));
+  /* Accurate text measurement via canvas, returned as a Boxwood measure hook. */
+  const _ctx = document.createElement("canvas").getContext("2d");
+  function measureText(text, fontSize = 14) {
+    return (avail) => {
+      _ctx.font = `${fontSize}px Outfit, sans-serif`;
+      const words = String(text).split(/\s+/);
+      const lines = []; let cur = "";
+      for (const w of words) {
+        const trial = cur ? cur + " " + w : w;
+        if (_ctx.measureText(trial).width <= avail.w || !cur) cur = trial;
+        else { lines.push(cur); cur = w; }
       }
-      let totalFixed = 0;
-      let totalPctPct = 0;
-      let autoCount = 0;
-      for (const s of spec) {
-        if (typeof s === "number") totalFixed += s;
-        else if (s === "auto") autoCount++;
-        else if (typeof s === "string" && s.endsWith("%")) totalPctPct += parseFloat(s);
-      }
-      const totalPct = (totalPctPct / 100) * parentW;
-      const remaining = parentW - totalFixed - totalPct - gap * (spec.length - 1);
-      const autoW = autoCount > 0 ? Math.max(0, remaining / autoCount) : 0;
-      return spec.map((s, idx) => {
-        if (typeof s === "number") return { w: s, kind: "fixed", idx };
-        if (s === "auto") return { w: autoW, kind: "auto", idx };
-        const pct = parseFloat(s);
-        if (typeof s === "string" && s.endsWith("%") && !isNaN(pct)) {
-          return { w: (pct / 100) * parentW, kind: "pct", idx };
-        }
-        return { w: 0, kind: "fixed", idx };
-      });
-    }
-
-    function splitCols(parentFrame, cols, gap, pad) {
-      const innerX = parentFrame.x + pad.left;
-      const innerY = parentFrame.y + pad.top;
-      const innerW = parentFrame.w - pad.left - pad.right;
-      const innerH = parentFrame.h - pad.top - pad.bottom;
-      const boxes = [];
-      let cx = innerX;
-      for (const c of cols) {
-        boxes.push({ x: cx, y: innerY, w: c.w, h: innerH });
-        cx += c.w + gap;
-      }
-      return boxes;
-    }
-
-    function resolveRowHeights(spec, parentH, gap, childIntrinsicHs) {
-      if (typeof spec === "number") {
-        const n = Math.max(1, spec);
-        const rowH = (parentH - gap * (n - 1)) / n;
-        return Array.from({ length: n }, (_, i) => ({ h: rowH, kind: "fixed", idx: i }));
-      }
-      const n = spec.length;
-      let usedFixed = 0;
-      let usedPct = 0;
-      const autoCount = spec.filter((s) => s === "auto").length;
-      for (let i = 0; i < n; i++) {
-        const s = spec[i];
-        if (typeof s === "number") usedFixed += s;
-        else if (typeof s === "string" && s.endsWith("%")) {
-          const pct = parseFloat(s);
-          if (!isNaN(pct)) usedPct += (pct / 100) * parentH;
-        }
-      }
-      const remaining = parentH - usedFixed - usedPct - gap * (n - 1);
-      const intrinsicTotal = childIntrinsicHs.reduce((a, b) => a + b, 0);
-      let autoH = 0;
-      if (autoCount > 0) {
-        autoH = Math.max(0, remaining / autoCount);
-      }
-      return spec.map((s, idx) => {
-        if (typeof s === "number") return { h: s, kind: "fixed", idx };
-        if (s === "auto") return { h: autoH, kind: "auto", idx };
-        const pct = parseFloat(s);
-        if (typeof s === "string" && s.endsWith("%") && !isNaN(pct)) {
-          return { h: (pct / 100) * parentH, kind: "pct", idx };
-        }
-        return { h: 0, kind: "fixed", idx };
-      });
-    }
-
-    function splitRows(parentFrame, rows, gap, pad) {
-      const innerX = parentFrame.x + pad.left;
-      const innerY = parentFrame.y + pad.top;
-      const innerW = parentFrame.w - pad.left - pad.right;
-      const innerH = parentFrame.h - pad.top - pad.bottom;
-      const boxes = [];
-      let cy = innerY;
-      for (const r of rows) {
-        boxes.push({ x: innerX, y: cy, w: innerW, h: r.h });
-        cy += r.h + gap;
-      }
-      return boxes;
-    }
-
-    function isAncestor(ancestor, node) {
-      let cur = node.parent;
-      while (cur) {
-        if (cur === ancestor) return true;
-        cur = cur.parent;
-      }
-      return false;
-    }
-
-    function boxesOverlap(a, b) {
-      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-    }
-
-    function overlapArea(a, b) {
-      const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
-      const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
-      return ox * oy;
-    }
-
-    const NUDGE_DISTANCE = 8;
-    const MAX_PASSES = 4;
-
-    function resolveCollisions(resolvedNodes, world) {
-      if (resolvedNodes.length < 2) return;
-      for (let pass = 0; pass < MAX_PASSES; pass++) {
-        let anyCollision = false;
-        for (let i = 0; i < resolvedNodes.length; i++) {
-          for (let j = i + 1; j < resolvedNodes.length; j++) {
-            const ni = resolvedNodes[i];
-            const nj = resolvedNodes[j];
-            if (isAncestor(ni, nj) || isAncestor(nj, ni)) continue;
-            if (!boxesOverlap(ni.box, nj.box)) continue;
-            anyCollision = true;
-
-            const a = ni.box;
-            const b = nj.box;
-            const overlapW = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-            const overlapH = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-            const nudgeX = overlapW < overlapH ? NUDGE_DISTANCE : 0;
-            const nudgeY = overlapW >= overlapH ? NUDGE_DISTANCE : 0;
-
-            if (nudgeX !== 0) {
-              if (a.x < b.x) b.x += nudgeX; else a.x += nudgeX;
-            }
-            if (nudgeY !== 0) {
-              if (a.y < b.y) b.y += nudgeY; else a.y += nudgeY;
-            }
-          }
-        }
-        if (!anyCollision) break;
-      }
-      for (const rn of resolvedNodes) {
-        rn.box.x = Math.max(0, Math.min(rn.box.x, world.w - rn.box.w));
-        rn.box.y = Math.max(0, Math.min(rn.box.y, world.h - rn.box.h));
-      }
-    }
-
-    function resolveBoxHeight(styleH, parentH) {
-      if (styleH === undefined || styleH === "auto") return { h: 0, isAuto: true };
-      if (typeof styleH === "number") return { h: styleH, isAuto: false };
-      if (typeof styleH === "string" && styleH.endsWith("%")) {
-        const pct = parseFloat(styleH);
-        if (!isNaN(pct)) return { h: (pct / 100) * parentH, isAuto: false };
-      }
-      return { h: 0, isAuto: true };
-    }
-
-    function estimateIntrinsicHeight(child, innerW, measure) {
-      if (!child.measure) {
-        if (child.children && child.children.length > 0) return 60;
-        return 0;
-      }
-      const m = child.measure({ w: innerW });
-      const pad = resolveSides(child.style.padding);
-      return m.h + pad.top + pad.bottom;
-    }
-
-    function resolveNode(node, parentFrame, slotBox, measure, overflow) {
-      const margin = resolveSides(node.style.margin);
-      const pad = resolveSides(node.style.padding);
-
-      let boxW, boxH, boxX, boxY;
-      const hRes = resolveBoxHeight(node.style.h, parentFrame.h);
-
-      if (slotBox) {
-        boxW = slotBox.w;
-        boxH = slotBox.h !== 0 ? slotBox.h : hRes.h;
-        boxX = slotBox.x;
-        boxY = slotBox.y;
-      } else {
-        boxW = resolveLen(node.style.w, parentFrame.w, parentFrame.w);
-        boxH = hRes.h;
-        boxX = parentFrame.x;
-        boxY = parentFrame.y;
-      }
-
-      let margined = {
-        x: boxX + margin.left,
-        y: boxY + margin.top,
-        w: Math.max(0, boxW - margin.left - margin.right),
-        h: Math.max(0, boxH - margin.top - margin.bottom)
-      };
-      let contentFrame = {
-        x: margined.x + pad.left,
-        y: margined.y + pad.top,
-        w: Math.max(0, margined.w - pad.left - pad.right),
-        h: Math.max(0, margined.h - pad.top - pad.bottom)
-      };
-
-      if (boxH === 0 && !node.measure) {
-        margined.h = parentFrame.h;
-        contentFrame.h = Math.max(0, parentFrame.h - pad.top - pad.bottom);
-      }
-
-      let children;
-      let textLayout;
-
-      if (node.split) {
-        const split = node.split;
-        const gap = split.gap ? resolveLen(split.gap, contentFrame.w, 0) : 0;
-        const sp = resolveSides(undefined);
-        if ("rows" in split) {
-          const innerW = contentFrame.w;
-          const intrinsicHs = (node.children || []).map(c => estimateIntrinsicHeight(c, innerW, measure));
-          const rowSpecs = resolveRowHeights(split.rows, contentFrame.h, gap, intrinsicHs);
-          const cells = splitRows(contentFrame, rowSpecs, gap, sp);
-          children = (node.children || []).map((child, i) => resolveNode(child, contentFrame, cells[i], measure, overflow));
-        } else if ("cols" in split) {
-          const colSpecs = resolveColWidths(split.cols, contentFrame.w, gap);
-          const cells = splitCols(contentFrame, colSpecs, gap, sp);
-          children = (node.children || []).map((child, i) => resolveNode(child, contentFrame, cells[i], measure, overflow));
-        }
-      } else if (node.children) {
-        children = node.children.map(c => resolveNode(c, contentFrame, null, measure, overflow));
-      }
-
-      if (node.measure && contentFrame.w > 0) {
-        const measured = node.measure(contentFrame);
-        textLayout = { lines: measured.lines, fontSize: 13 };
-        if (boxH === 0) {
-          margined.h = measured.h + pad.top + pad.bottom;
-          contentFrame.h = measured.h;
-        }
-        if (measured.h > contentFrame.h && contentFrame.h > 0) {
-          overflow.push({ id: node.id, text: textLayout.lines.join(" ") });
-        }
-      }
-
-      const resolved = {
-        node,
-        box: margined,
-        contentFrame,
-        textLayout,
-        children
-      };
-      if (children) {
-        children.forEach(c => c.parent = resolved);
-      }
-      return resolved;
-    }
-
-    function flattenResolved(node, out) {
-      out.push(node);
-      if (node.children) node.children.forEach(c => flattenResolved(c, out));
-    }
-
-    function resolveLayout(root, world) {
-      const overflow = [];
-      const resolved = resolveNode(root, world, null, browserMeasureText, overflow);
-      const boxes = [];
-      flattenResolved(resolved, boxes);
-      resolveCollisions(boxes, world);
-      return { root: resolved, boxes, overflow };
-    }
-
-    // Canvas Text Measurer
-    const canvasContext = document.createElement('canvas').getContext('2d');
-    canvasContext.font = "14px 'Outfit', sans-serif";
-
-    function browserMeasureText(text, fontSize = 14) {
-      return (availBox) => {
-        canvasContext.font = `${fontSize}px 'Outfit', sans-serif`;
-        const words = text.split(" ");
-        let lines = [];
-        let curLine = "";
-        
-        words.forEach(word => {
-          const testLine = curLine ? curLine + " " + word : word;
-          const w = canvasContext.measureText(testLine).width;
-          if (w > availBox.w && curLine) {
-            lines.push(curLine);
-            curLine = word;
-          } else {
-            curLine = testLine;
-          }
-        });
-        if (curLine) lines.push(curLine);
-
-        return {
-          w: availBox.w,
-          h: lines.length * (fontSize * 1.4),
-          lines
-        };
-      };
-    }
-  </script>
-
-  <!-- Interactive Drag & Render Handling -->
-  <script>
-    let activeDemo = 'bento';
-
-    // 1. Demos Models
-    const demos = {
-      bento: {
-        getLayout: (w, h) => {
-          const useVerticalRows = w < 580;
-          return {
-            id: "bento-root",
-            style: { padding: 24 },
-            split: useVerticalRows 
-              ? { rows: ["50%", "50%"], gap: 16 } 
-              : { cols: ["55%", "45%"], gap: 16 },
-            children: [
-              { id: "main-feature-card", style: { w: "100%", h: "100%" } },
-              {
-                id: "right-stack-container",
-                style: { w: "100%", h: "100%" },
-                split: { rows: 2, gap: 16 },
-                children: [
-                  { id: "sub-card-top", style: { w: "100%", h: "100%" } },
-                  { id: "sub-card-bottom", style: { w: "100%", h: "100%" } }
-                ]
-              }
-            ]
-          };
-        }
-      },
-      pipeline: {
-        getLayout: (w, h) => {
-          return {
-            id: "pipeline-root",
-            style: { padding: 40 },
-            split: { cols: 3, gap: w > 600 ? 80 : 30 },
-            children: [
-              { id: "node-step-1", style: { w: "100%", h: 90, margin: { top: 40 } } },
-              { id: "node-step-2", style: { w: "100%", h: 90, margin: { top: 40 } } },
-              { id: "node-step-3", style: { w: "100%", h: 90, margin: { top: 40 } } }
-            ]
-          };
-        },
-        // Render custom S-curve connections
-        getSvgOverlay: (boxes) => {
-          const steps = boxes.filter(b => b.node.id && b.node.id.includes("step"));
-          let pathsSvg = "";
-          for (let i = 0; i < steps.length - 1; i++) {
-            const b1 = steps[i].box;
-            const b2 = steps[i+1].box;
-            
-            const startX = b1.x + b1.w;
-            const startY = b1.y + b1.h / 2;
-            const endX = b2.x;
-            const endY = b2.y + b2.h / 2;
-            
-            const offset = (endX - startX) * 0.45;
-            const path = `M ${startX} ${startY} C ${startX + offset} ${startY}, ${endX - offset} ${endY}, ${endX} ${endY}`;
-            
-            pathsSvg += `
-              <path d="${path}" stroke="var(--accent-cyan)" stroke-width="2.5" fill="none" stroke-dasharray="6,4" />
-              <circle cx="${startX}" cy="${startY}" r="4" fill="var(--accent-cyan)" />
-              <circle cx="${endX}" cy="${endY}" r="4" fill="var(--accent-cyan)" />
-            `;
-          }
-          return pathsSvg;
-        }
-      },
-      pdf: {
-        getLayout: (w, h) => {
-          const PDF_ORIGINAL_WIDTH = 1000;
-          // Scale absolute coordinates based on width ratio
-          const scale = w / PDF_ORIGINAL_WIDTH;
-          
-          return {
-            id: "responsive-wrapper",
-            style: { padding: 20 },
-            split: { cols: ["45%", "45%"], gap: "10%" },
-            children: [
-              { id: "span-a", style: { w: "100%", h: 100 } },
-              { id: "span-b", style: { w: "100%", h: 100 } }
-            ]
-          };
-        }
-      },
-      reflow: {
-        getLayout: (w, h) => {
-          const txt = "Every commit in Git is an immutable snapshot of your files. It contains parent hashes which forms a Directed Acyclic Graph.";
-          return {
-            id: "vertical-stack-root",
-            style: { padding: 24 },
-            split: { rows: ["auto", 110], gap: 20 },
-            children: [
-              {
-                id: "card-dynamic-text",
-                style: { w: "100%", padding: 18 },
-                measure: browserMeasureText(txt, 14)
-              },
-              {
-                id: "card-bottom-content",
-                style: { w: "100%" }
-              }
-            ]
-          };
-        }
-      }
+      if (cur) lines.push(cur);
+      const lineH = fontSize * 1.45;
+      const w = Math.min(avail.w, Math.max(0, ...lines.map((l) => _ctx.measureText(l).width)));
+      return { lines, w, h: lines.length * lineH, ascent: fontSize * 0.8, descent: fontSize * 0.2 };
     };
+  }
 
-    // 2. Switching demos
-    function switchDemo(demoName) {
-      activeDemo = demoName;
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      const activeBtn = Array.from(document.querySelectorAll('.tab-button')).find(btn => btn.getAttribute('onclick').includes(demoName));
-      if (activeBtn) activeBtn.classList.add('active');
-      
-      triggerRender();
+  /* ── Live state, driven by the controls ── */
+  const state = { demo: "dashboard", gap: 16, pad: 24, ratio: 58, orient: "auto", collide: true, theme: "dark" };
+  let curW = 820, curH = 500;
+
+  /* The primary 2-way split, honoring the orientation control. */
+  function primary() {
+    const r = state.ratio, g = state.gap;
+    const rows = state.orient === "rows" || (state.orient === "auto" && curW < curH);
+    const spec = [`${r}%`, `${100 - r}%`];
+    return rows ? { rows: spec, gap: g } : { cols: spec, gap: g };
+  }
+  const pane = (id, txt, font) => ({ id, style: { w: "100%", h: "100%", padding: 14 }, measure: txt ? measureText(txt, font || 14) : undefined });
+
+  /* ── The scenarios. Each returns ONE declarative tree; some add connectors. ── */
+  const demos = {
+    dashboard: {
+      label: "Dashboard", desc: "SVG dashboards", icon: "fa-chart-line", tone: "card",
+      layout: () => ({
+        id: "root", style: { padding: state.pad }, split: primary(),
+        children: [
+          pane("hero", "Revenue +18% this quarter", 18),
+          { id: "stack", style: { w: "100%", h: "100%" }, split: { rows: 3, gap: state.gap },
+            children: [pane("users", "Users 42,180", 14), pane("conv", "Conv 3.9%", 14), pane("churn", "Churn 1.2%", 14)] },
+        ],
+      }),
+    },
+    diagram: {
+      label: "Node Editor", desc: "diagrams / DAGs", icon: "fa-diagram-project", tone: "card",
+      layout: () => {
+        const rows = state.orient === "rows" || (state.orient === "auto" && curW < curH);
+        const outer = rows ? { rows: 3, gap: state.gap * 2 } : { cols: 3, gap: state.gap * 2.5 };
+        const inner = rows ? { cols: 2, gap: state.gap } : { rows: 2, gap: state.gap };
+        return {
+          id: "root", style: { padding: state.pad + 8 }, split: outer,
+          children: [
+            { id: "wrap-in", style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [pane("input", "Input", 14)] },
+            { id: "wrap-work", style: { w: "100%", h: "100%" }, split: inner, children: [pane("worker-a", "Transform A", 13), pane("worker-b", "Transform B", 13)] },
+            { id: "wrap-out", style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [pane("output", "Output", 14)] },
+          ],
+        };
+      },
+      links: (byId) => {
+        const e = [["input", "worker-a"], ["input", "worker-b"], ["worker-a", "output"], ["worker-b", "output"]];
+        return e.map(([a, b]) => bezier(byId(a), byId(b))).join("");
+      },
+    },
+    generative: {
+      label: "Generative", desc: "procedural grid", icon: "fa-border-all", tone: "tile",
+      layout: () => {
+        // A grid that DENSIFIES with the available space — procedural response
+        // to size. splitGrid carves it; we tint cells for a generative feel.
+        const cols = Math.max(2, Math.round(curW / 110));
+        const rows = Math.max(2, Math.round(curH / 110));
+        const n = cols * rows;
+        return {
+          id: "root", style: { padding: state.pad }, split: { grid: [cols, rows], gap: state.gap },
+          children: Array.from({ length: n }, (_, i) => ({ id: "cell-" + i, style: { w: "100%", h: "100%" } })),
+        };
+      },
+    },
+    pdf: {
+      label: "PDF Reflow", desc: "two-column text", icon: "fa-file-lines", tone: "card",
+      layout: () => ({
+        id: "root", style: { padding: state.pad }, split: { rows: [56, "auto"], gap: state.gap },
+        children: [
+          pane("title", "Quarterly Field Report", 20),
+          { id: "body", style: { w: "100%", h: "100%" }, split: { cols: ["50%", "50%"], gap: state.gap + 8 },
+            children: [
+              { id: "col-left", style: { w: "100%", h: "100%", padding: 12 }, measure: measureText("The northern transect showed a marked increase in canopy density compared to the prior survey, consistent with a wetter season and reduced grazing pressure.", 13) },
+              { id: "col-right", style: { w: "100%", h: "100%", padding: 12 }, measure: measureText("Soil samples returned higher nitrogen than expected; we attribute this to the cover-crop rotation begun last spring, establishing well despite the late frost.", 13) },
+            ] },
+        ],
+      }),
+    },
+    gameui: {
+      label: "Game HUD", desc: "absolute / pos", icon: "fa-gamepad", tone: "soft",
+      layout: () => ({
+        id: "root", style: { padding: 0 },
+        children: [
+          { id: "health", style: { w: "34%", h: 46, pos: { x: 18, y: 18 } } },
+          { id: "minimap", style: { w: 132, h: 110, pos: { x: "70%", y: 18 } } },
+          { id: "quest", style: { w: 180, h: 86, pos: { x: 18, y: "58%" } } },
+          { id: "actionbar", style: { w: "52%", h: 58, pos: { x: "24%", y: "80%" } } },
+          { id: "reticle", style: { w: 26, h: 26, pos: "center" } },
+        ],
+      }),
+    },
+    brutalist: {
+      label: "Poster", desc: "stark systems", icon: "fa-cube", tone: "card",
+      layout: () => ({
+        id: "root", style: { padding: state.pad }, split: { rows: ["46%", "30%", "24%"], gap: state.gap },
+        children: [
+          pane("display", "FORM FOLLOWS FUNCTION", 26),
+          { id: "triptych", style: { w: "100%", h: "100%" }, split: { cols: 3, gap: state.gap },
+            children: [pane("one", "01", 18), pane("two", "02", 18), pane("three", "03", 18)] },
+          pane("footer", "Boxwood · grid systems", 13),
+        ],
+      }),
+    },
+  };
+
+  /* ── Theme color lookup for SVG (CSS vars don't apply to SVG attributes). ── */
+  function css(v) { return getComputedStyle(document.body).getPropertyValue(v).trim(); }
+  function palette() {
+    return [css("--accent-gold"), css("--accent-cyan"), css("--accent-pink"), css("--accent-green")];
+  }
+  function accentFor(id, idx) {
+    const p = palette();
+    if (id.startsWith("cell-")) return p[idx % p.length];
+    if (/hero|display|input|title|health/.test(id)) return p[0];
+    if (/users|worker-a|one|minimap|col-left/.test(id)) return p[1];
+    if (/churn|output|three|actionbar|footer/.test(id)) return p[2];
+    if (/conv|worker-b|two|quest|col-right|reticle/.test(id)) return p[3];
+    return p[idx % p.length];
+  }
+
+  /* ── A bezier connector between two boxes (node-editor edges). ── */
+  function bezier(a, b) {
+    if (!a || !b) return "";
+    const horizontal = Math.abs((b.x + b.w / 2) - (a.x + a.w / 2)) >= Math.abs((b.y + b.h / 2) - (a.y + a.h / 2));
+    const from = horizontal ? { x: a.x + a.w, y: a.y + a.h / 2 } : { x: a.x + a.w / 2, y: a.y + a.h };
+    const to = horizontal ? { x: b.x, y: b.y + b.h / 2 } : { x: b.x + b.w / 2, y: b.y };
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const c1 = horizontal ? { x: from.x + dx * 0.5, y: from.y } : { x: from.x, y: from.y + dy * 0.5 };
+    const c2 = horizontal ? { x: to.x - dx * 0.5, y: to.y } : { x: to.x, y: to.y - dy * 0.5 };
+    const acc = css("--accent-cyan");
+    return `<path d="M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}" stroke="${acc}" stroke-width="2" fill="none" stroke-dasharray="6 4" />
+            <circle cx="${from.x}" cy="${from.y}" r="3.5" fill="${acc}" /><circle cx="${to.x}" cy="${to.y}" r="3.5" fill="${acc}" />`;
+  }
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  /* ── Render one resolved box. `tone` styles it: card / tile / soft. ── */
+  function renderBox(node, idx, tone) {
+    const { x, y, w, h } = node.box;
+    const id = node.node.id;
+    const acc = accentFor(id, idx);
+    const panelBg = css("--panel-bg");
+    const bg = css("--bg-color");
+    const ink = css("--text-main");
+    const muted = css("--text-muted");
+
+    const lines = (node.textLayout?.lines ?? [])
+      .map((ln, i) => `<text x="${x + 14}" y="${y + 56 + i * 18}" fill="${ink}" font-family="Outfit, sans-serif" font-size="13">${esc(ln)}</text>`).join("");
+
+    if (tone === "tile") {
+      // generative: solid tinted tiles, no chrome
+      return `<g class="layout-card" data-id="${id}">
+        <rect class="panel" x="${x}" y="${y}" width="${w}" height="${h}" fill="${acc}" fill-opacity="0.16" stroke="${acc}" stroke-width="1.5" />
+      </g>`;
     }
-
-    // 3. Main layout renderer
-    function triggerRender() {
-      const container = document.getElementById('resizable-box');
-      const cw = container.clientWidth;
-      const ch = container.clientHeight;
-      
-      // Update dimensions labels
-      document.getElementById('canvas-w').innerText = cw;
-      document.getElementById('canvas-h').innerText = ch;
-      
-      const svg = document.getElementById('svg-canvas');
-      svg.setAttribute('viewBox', `0 0 ${cw} ${ch}`);
-      svg.innerHTML = ''; // Clear SVG
-      
-      // Get current layout spec
-      const demoSpec = demos[activeDemo];
-      const rootNode = demoSpec.getLayout(cw, ch);
-      
-      // Run solver
-      const { boxes, overflow } = resolveLayout(rootNode, { x: 0, y: 0, w: cw, h: ch });
-      
-      // Update stats panel
-      document.getElementById('stat-resolved-count').innerText = boxes.length;
-      document.getElementById('stat-overflow').innerText = overflow.length > 0 ? `Alert: ${overflow.length} text blocks` : 'None';
-      
-      // Draw gridlines in background
-      let elementsHtml = '';
-      
-      // Render resolved boxes (Google Stitch brutalism - Stark flat styling)
-      boxes.forEach(node => {
-        if (node.node.id === "bento-root" || node.node.id === "responsive-wrapper" || node.node.id === "vertical-stack-root" || node.node.id === "pipeline-root") {
-          return; // skip root wrapper boundaries
-        }
-        
-        const { x, y, w, h } = node.box;
-        
-        // Stark Brutalist Flat Theme
-        let accentColor = "var(--accent-gold)";
-        if (node.node.id.includes("main") || node.node.id.includes("dynamic")) accentColor = "var(--accent-pink)";
-        if (node.node.id.includes("step")) accentColor = "var(--accent-green)";
-        if (node.node.id.includes("span")) accentColor = "var(--accent-cyan)";
-        
-        let textRuns = '';
-        if (node.textLayout) {
-          textRuns = node.textLayout.lines.map((line, i) => 
-            `<text x="${x + 20}" y="${y + 70 + (i * 20)}" fill="#e4e4e7" font-family="sans-serif" font-size="13px">${line}</text>`
-          ).join('');
-        }
-        
-        elementsHtml += `
-          <g class="layout-card">
-            <!-- Brutalist shadow outline -->
-            <rect x="${x + 4}" y="${y + 4}" width="${w}" height="${h}" fill="none" stroke="rgba(0,0,0,0.6)" stroke-width="2" />
-            <!-- Main box panel -->
-            <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="var(--panel-bg)" stroke="${accentColor}" stroke-width="2" />
-            <!-- Card badge / title tag -->
-            <rect x="${x}" y="${y}" width="${w}" height="28" fill="${accentColor}" stroke="${accentColor}" stroke-width="1" />
-            <text x="${x + 12}" y="${y + 19}" fill="var(--bg-color)" font-family="'IBM Plex Mono', monospace" font-size="11px" font-weight="700">${node.node.id.toUpperCase()}</text>
-            
-            <!-- Coordinates stamp -->
-            <text x="${x + 12}" y="${y + 46}" fill="var(--text-muted)" font-family="'IBM Plex Mono', monospace" font-size="10px">${Math.round(w)}w × ${Math.round(h)}h</text>
-            
-            ${textRuns}
-          </g>
-        `;
-      });
-      
-      // Inject overlays
-      if (demoSpec.getSvgOverlay) {
-        elementsHtml += demoSpec.getSvgOverlay(boxes);
-      }
-      
-      svg.innerHTML = elementsHtml;
+    if (tone === "soft") {
+      // game HUD: translucent panels
+      return `<g class="layout-card" data-id="${id}">
+        <rect class="panel" x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${acc}" fill-opacity="0.14" stroke="${acc}" stroke-width="1.5" />
+        <text x="${x + 10}" y="${y + 16}" fill="${acc}" font-family="${'IBM Plex Mono'}, monospace" font-size="9.5" font-weight="700" letter-spacing="0.5">${esc(id.toUpperCase())}</text>
+      </g>`;
     }
+    // default brutalist card
+    return `<g class="layout-card" data-id="${id}">
+      <rect x="${x + 4}" y="${y + 4}" width="${w}" height="${h}" fill="none" stroke="${css('--card-shadow')}" stroke-width="2" />
+      <rect class="panel" x="${x}" y="${y}" width="${w}" height="${h}" fill="${panelBg}" stroke="${acc}" stroke-width="2" />
+      <rect x="${x}" y="${y}" width="${w}" height="26" fill="${acc}" />
+      <text x="${x + 12}" y="${y + 18}" fill="${bg}" font-family="${'IBM Plex Mono'}, monospace" font-size="10.5" font-weight="700">${esc(id.toUpperCase())}</text>
+      <text x="${x + 12}" y="${y + 44}" fill="${muted}" font-family="${'IBM Plex Mono'}, monospace" font-size="10">${Math.round(w)}w × ${Math.round(h)}h</text>
+      ${lines}
+    </g>`;
+  }
 
-    // 4. Drag to resize logic
-    const box = document.getElementById('resizable-box');
-    const handle = document.getElementById('handle');
-    
-    let isDragging = false;
-    let startWidth, startHeight, startX, startY;
+  /* ── The render loop: resolve the active demo at the current size, draw. ── */
+  function render() {
+    const container = document.getElementById("resizable-box");
+    curW = container.clientWidth; curH = container.clientHeight;
+    document.getElementById("canvas-w").textContent = curW;
+    document.getElementById("canvas-h").textContent = curH;
 
-    handle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      startWidth = box.clientWidth;
-      startHeight = box.clientHeight;
-      
-      document.body.style.cursor = 'nwse-resize';
-      e.preventDefault();
-    });
+    const spec = demos[state.demo];
+    const root = spec.layout();
+    const { boxes, overflow } = resolveLayout(root, { x: 0, y: 0, w: curW, h: curH }, { measure: defaultMeasure, collide: state.collide });
 
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      
-      const dw = e.clientX - startX;
-      const dh = e.clientY - startY;
-      
-      const newW = Math.max(340, Math.min(900, startWidth + dw));
-      const newH = Math.max(280, Math.min(600, startHeight + dh));
-      
-      box.style.width = newW + 'px';
-      box.style.height = newH + 'px';
-      
-      triggerRender();
-    });
+    // Draw boxes (skip the structural root + wrapper containers).
+    const leaves = boxes.filter((n) => !(n.node.children && n.node.children.length));
+    let svgHtml = "";
+    leaves.forEach((n, i) => { if (n.node.id) svgHtml += renderBox(n, i, spec.tone); });
+    if (spec.links) {
+      const byId = (id) => boxes.find((n) => n.node.id === id)?.box;
+      svgHtml += spec.links(byId);
+    }
+    const svg = document.getElementById("svg-canvas");
+    svg.setAttribute("viewBox", `0 0 ${curW} ${curH}`);
+    svg.innerHTML = svgHtml;
 
-    window.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        document.body.style.cursor = 'default';
-      }
-    });
+    // Stats
+    document.getElementById("stat-count").textContent = boxes.length;
+    const ov = document.getElementById("stat-overflow");
+    ov.textContent = overflow.length ? `${overflow.length} signal${overflow.length > 1 ? "s" : ""}` : "None";
+    ov.classList.toggle("warn", overflow.length > 0);
+    document.getElementById("stat-collide").textContent = state.collide ? "On" : "Off";
 
-    // Initial load
-    triggerRender();
+    // Coordinate table
+    const body = document.getElementById("coord-body");
+    body.innerHTML = leaves.filter((n) => n.node.id).map((n, i) => {
+      const b = n.box, acc = accentFor(n.node.id, i);
+      return `<tr data-id="${n.node.id}">
+        <td class="idc"><span class="dot" style="background:${acc}"></span>${esc(n.node.id)}</td>
+        <td>${Math.round(b.x)}</td><td>${Math.round(b.y)}</td><td>${Math.round(b.w)}</td><td>${Math.round(b.h)}</td></tr>`;
+    }).join("");
+  }
+
+  /* ── Cross-highlight: hover a table row ⇄ its box, and vice versa. ── */
+  function highlight(id) {
+    document.querySelectorAll(".layout-card.hl, tr.hl").forEach((el) => el.classList.remove("hl"));
+    if (!id) return;
+    document.querySelector(`.layout-card[data-id="${id}"]`)?.classList.add("hl");
+    document.querySelector(`tr[data-id="${id}"]`)?.classList.add("hl");
+  }
+  document.getElementById("svg-canvas").addEventListener("mouseover", (e) => {
+    const g = e.target.closest("[data-id]"); highlight(g ? g.dataset.id : null);
+  });
+  document.getElementById("svg-canvas").addEventListener("mouseleave", () => highlight(null));
+  document.getElementById("coord-body").addEventListener("mouseover", (e) => {
+    const tr = e.target.closest("tr[data-id]"); highlight(tr ? tr.dataset.id : null);
+  });
+  document.getElementById("coord-body").addEventListener("mouseleave", () => highlight(null));
+
+  /* ── Build the scenario buttons ── */
+  const grid = document.getElementById("demo-grid");
+  grid.innerHTML = Object.entries(demos).map(([key, d]) =>
+    `<button class="tab-button ${key === state.demo ? "active" : ""}" data-demo="${key}">
+       <i class="fa-solid ${d.icon}"></i><span>${d.label}</span><span class="tab-desc">${d.desc}</span></button>`).join("");
+  grid.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-demo]"); if (!btn) return;
+    state.demo = btn.dataset.demo;
+    grid.querySelectorAll(".tab-button").forEach((b) => b.classList.toggle("active", b === btn));
+    document.getElementById("canvas-name").textContent = demos[state.demo].label.toUpperCase() + " — LAYOUT CANVAS";
+    render();
+  });
+
+  /* ── Wire the controls ── */
+  function slider(id, key, fmt) {
+    const el = document.getElementById(id), out = document.getElementById("v-" + key);
+    el.addEventListener("input", () => { state[key] = Number(el.value); out.textContent = fmt ? fmt(el.value) : el.value; render(); });
+  }
+  slider("c-gap", "gap"); slider("c-pad", "pad"); slider("c-ratio", "ratio", (v) => v + "%");
+  document.getElementById("c-orient").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-o]"); if (!b) return;
+    state.orient = b.dataset.o;
+    document.querySelectorAll("#c-orient button").forEach((x) => x.classList.toggle("on", x === b));
+    render();
+  });
+  const collideSwitch = document.getElementById("c-collide");
+  collideSwitch.addEventListener("click", () => { state.collide = !state.collide; collideSwitch.classList.toggle("on", state.collide); render(); });
+
+  /* ── Size presets ── */
+  document.querySelectorAll(".size-presets [data-w]").forEach((btn) => btn.addEventListener("click", () => {
+    const box = document.getElementById("resizable-box");
+    box.style.width = btn.dataset.w + "px"; box.style.height = btn.dataset.h + "px"; render();
+  }));
+
+  /* ── Theme toggle ── */
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    document.body.classList.toggle("light", state.theme === "light");
+    document.getElementById("theme-toggle").innerHTML =
+      state.theme === "light" ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    render(); // SVG colors are resolved in JS, so re-render to recolor the canvas
+  });
+
+  /* ── Drag-to-resize the world ── */
+  const box = document.getElementById("resizable-box"), handle = document.getElementById("handle");
+  let drag = null;
+  handle.addEventListener("pointerdown", (e) => {
+    drag = { x: e.clientX, y: e.clientY, w: box.clientWidth, h: box.clientHeight };
+    handle.setPointerCapture(e.pointerId); document.body.style.cursor = "nwse-resize"; e.preventDefault();
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    box.style.width = Math.max(320, Math.min(920, drag.w + (e.clientX - drag.x))) + "px";
+    box.style.height = Math.max(280, Math.min(600, drag.h + (e.clientY - drag.y))) + "px";
+    render();
+  });
+  window.addEventListener("pointerup", () => { drag = null; document.body.style.cursor = "default"; });
+
+  document.getElementById("canvas-name").textContent = demos[state.demo].label.toUpperCase() + " — LAYOUT CANVAS";
+  render();
   </script>
 </body>
 </html>

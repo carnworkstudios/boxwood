@@ -3,55 +3,83 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Boxwood — 03 — Absolute PDF Spans → Responsive Reflow</title>
+<title>Boxwood — Absolute PDF Spans, Made Responsive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <style>
-  :root { --bg:#0c0c14; --panel:#141424; --line:#2d2d3d; --text:#e2e8f0; --muted:#8a8a9a; --accent:#38bdf8; }
+  :root {
+    --paper:#F0EDE8; --ivory:#FAF9F7; --carbon:#141414; --ink:#1E1E1E;
+    --fog:#888888; --line:#DAD3C7; --amber:#C98A2E; --amber-pure:#E8A44A;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --body:'DM Sans', system-ui, sans-serif;
+    --display:'Playfair Display', Georgia, serif;
+  }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+    margin: 0; background: var(--paper); color: var(--carbon);
+    font-family: var(--body); font-weight: 300;
+    padding: 40px 28px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px;
   }
-  header { text-align: center; max-width: 760px; }
-  h1 { color: var(--accent); margin: 0 0 6px; font-size: 22px; letter-spacing: -0.4px; }
-  header p { color: var(--muted); margin: 0; font-size: 14px; line-height: 1.55; }
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  header { max-width: 720px; width: 100%; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--amber); display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  h1 {
+    font-family: var(--display); font-weight: 700; color: var(--carbon);
+    font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.01em; line-height: 1.1; margin: 0 0 10px;
+  }
+  header p { color: #5a5a52; margin: 0; font-size: 14px; line-height: 1.65; max-width: 640px; }
+  .controls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
   .controls button {
-    background: var(--panel); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer;
-    transition: border-color .15s, color .15s;
+    background: transparent; color: var(--fog); border: 1px solid var(--line);
+    border-radius: 2px; padding: 7px 13px; font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; font-family: var(--mono); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; transition: all .18s;
   }
-  .controls button:hover { border-color: var(--accent); color: var(--accent); }
-  #readout { color: var(--muted); font-size: 13px; font-family: ui-monospace, monospace; }
+  .controls button:hover { color: var(--carbon); border-color: #C7BFB0; }
+  .controls button i { font-size: 12px; }
+  #readout {
+    color: var(--fog); font-size: 11px; letter-spacing: 0.04em; font-family: var(--mono);
+  }
   #stage {
-    position: relative; background: radial-gradient(circle at center, #141424 0%, #0e0e16 100%);
-    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 50px rgba(0,0,0,.55); overflow: hidden;
+    position: relative; background: var(--ivory);
+    border: 1px solid var(--line); border-radius: 5px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 40px -24px rgba(20,20,20,0.35);
+    overflow: hidden;
   }
   #stage svg {
     display: block;
     background:
-      repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,.03) 20px),
-      repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,.03) 20px);
+      repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(20,20,20,0.035) 24px),
+      repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(20,20,20,0.035) 24px);
   }
   #handle {
-    position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; cursor: nwse-resize;
-    color: var(--accent); display: grid; place-items: center; font-size: 14px;
-    user-select: none; touch-action: none;
+    position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; cursor: nwse-resize;
+    color: var(--amber); display: grid; place-items: center; font-size: 11px;
+    user-select: none; touch-action: none; opacity: 0.7; transition: opacity .15s;
   }
+  #handle:hover { opacity: 1; }
 </style>
 </head>
 <body>
 <header>
-  <h1>03 — Absolute PDF Spans → Responsive Reflow</h1>
+  <div class="eyebrow">Boxwood · Layout Engine</div>
+  <h1>Absolute PDF Spans, Made Responsive</h1>
   <p>A PDF extract's absolute x/w spans are converted to percentage columns. Shrink the panel and the two-column body narrows while each paragraph rewraps into more and more lines — a live CSS-style column reflow driven by geometry derived once, up front.</p>
+  <div class="eyebrow"></div>
 </header>
+<div class="eyebrow"></div>
 <div class="controls">
-  <button data-w="900" data-h="540">🖥️ Wide</button>
-  <button data-w="620" data-h="560">💻 Medium</button>
-  <button data-w="380" data-h="640">📱 Narrow</button>
+  <button data-w="900" data-h="540"><i class="fa-solid fa-desktop"></i> Wide</button>
+  <button data-w="620" data-h="560"><i class="fa-solid fa-tablet-screen-button"></i> Medium</button>
+  <button data-w="380" data-h="640"><i class="fa-solid fa-mobile-screen-button"></i> Narrow</button>
 </div>
 <div id="readout"></div>
-<div id="stage"><div id="handle">◢</div></div>
+<div id="stage"><div id="handle"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div></div>
 <script>
 "use strict";
 (() => {
@@ -361,7 +389,10 @@
     }
     return { h: 0, isAuto: true };
   }
-  function resolveNode(node, parentFrame, slotBox, ctx, overflow) {
+  function isAutoHeight(node) {
+    return node.style.h === void 0 || node.style.h === "auto";
+  }
+  function resolveNode(node, parentFrame, slotBox, ctx, path) {
     const margin = resolveSides(node.style.margin);
     const pad = resolveSides(node.style.padding);
     let boxW;
@@ -371,7 +402,14 @@
     const hRes = resolveBoxHeight(node.style.h, parentFrame.h);
     if (slotBox) {
       boxW = slotBox.w;
-      boxH = slotBox.h !== 0 ? slotBox.h : hRes.h;
+      if (slotBox.h !== 0 && !hRes.isAuto) {
+        boxH = slotBox.h;
+      } else if (slotBox.h !== 0 && hRes.isAuto) {
+        const innerW = Math.max(0, slotBox.w - pad.left - pad.right - margin.left - margin.right);
+        boxH = Math.max(slotBox.h, measureIntrinsicHeight(node, innerW, ctx.measure));
+      } else {
+        boxH = hRes.h;
+      }
       boxX = slotBox.x;
       boxY = slotBox.y;
     } else {
@@ -390,10 +428,10 @@
     let children;
     let textLayout;
     if (node.split) {
-      children = resolveSplitChildren(node, node.split, contentFrame, ctx, overflow);
+      children = resolveSplitChildren(node, node.split, contentFrame, ctx, path);
     } else if (node.children && node.children.length > 0) {
       children = node.children.map(
-        (child) => resolveNode(child, contentFrame, null, ctx, overflow)
+        (child, i) => resolveNode(child, contentFrame, null, ctx, childPath(path, child, i))
       );
     }
     if (node.measure && contentFrame.w > 0) {
@@ -404,14 +442,13 @@
         ascent: measured.ascent,
         descent: measured.descent
       };
-      if (boxH === 0) {
+      if (isAutoHeight(node)) {
         const totalH = measured.h + pad.top + pad.bottom;
-        margined.h = Math.max(totalH, 1);
-        contentFrame.h = Math.max(measured.h, 1);
-      }
-      if (measured.h > contentFrame.h && contentFrame.h > 0) {
-        overflow.push({
-          path: "",
+        margined.h = Math.max(margined.h, totalH, 1);
+        contentFrame.h = Math.max(contentFrame.h, measured.h, 1);
+      } else if (measured.h > contentFrame.h && contentFrame.h > 0) {
+        ctx.overflow.push({
+          path,
           box: contentFrame,
           fontSize: textLayout.fontSize,
           text: measured.lines.join(" ")
@@ -430,69 +467,90 @@
     }
     return resolved;
   }
-  function resolveSplitChildren(node, split, contentFrame, ctx, overflow) {
+  function resolveSplitChildren(node, split, contentFrame, ctx, path) {
     const ch = node.children;
     if (!ch || ch.length === 0) return [];
     const gap = "gap" in split && split.gap !== void 0 ? resolveGap(split.gap, contentFrame.w) : 0;
     const sp = "pad" in split && split.pad !== void 0 ? resolveSides(split.pad) : resolveSides(void 0);
+    const place = (cells) => ch.map((child, i) => {
+      const cell = cells[Math.min(i, cells.length - 1)];
+      return resolveNode(child, contentFrame, cell, ctx, childPath(path, child, i));
+    });
     if ("rows" in split && (typeof split.rows === "number" || Array.isArray(split.rows))) {
       const innerW = contentFrame.w - sp.left - sp.right;
-      const intrinsicHs = [];
-      for (let i = 0; i < ch.length; i++) {
-        intrinsicHs.push(estimateIntrinsicHeight(ch[i], innerW, ctx.measure));
-      }
+      const intrinsicHs = ch.map((c) => measureIntrinsicHeight(c, innerW, ctx.measure));
       const innerH = contentFrame.h - sp.top - sp.bottom;
       const rowSpecs = resolveRowHeights(split.rows, innerH, gap, intrinsicHs);
-      const cells = splitRows(contentFrame, rowSpecs, gap, sp);
-      return ch.map((child, i) => {
-        const cell = cells[Math.min(i, cells.length - 1)];
-        return resolveNode(child, contentFrame, cell, ctx, overflow);
-      });
+      return place(splitRows(contentFrame, rowSpecs, gap, sp));
     }
     if ("cols" in split && (typeof split.cols === "number" || Array.isArray(split.cols))) {
       const innerW = contentFrame.w - sp.left - sp.right;
       const colSpecs = resolveColWidths(split.cols, innerW, gap);
-      const cells = splitCols(contentFrame, colSpecs, gap, sp);
-      return ch.map((child, i) => {
-        const cell = cells[Math.min(i, cells.length - 1)];
-        return resolveNode(child, contentFrame, cell, ctx, overflow);
-      });
+      return place(splitCols(contentFrame, colSpecs, gap, sp));
     }
     if ("grid" in split) {
-      const cells = splitGrid(contentFrame, split.grid, gap, sp);
-      return ch.map((child, i) => {
-        const cell = cells[Math.min(i, cells.length - 1)];
-        return resolveNode(child, contentFrame, cell, ctx, overflow);
-      });
+      return place(splitGrid(contentFrame, split.grid, gap, sp));
     }
     if ("zones" in split) {
-      const cells = splitZones(split.zones);
-      return ch.map((child, i) => {
-        const cell = cells[Math.min(i, cells.length - 1)];
-        return resolveNode(child, contentFrame, cell, ctx, overflow);
-      });
+      return place(splitZones(split.zones));
     }
     return [];
   }
-  function estimateIntrinsicHeight(child, innerW, measure2) {
-    if (!child.measure) {
-      if (child.children && child.children.length > 0) {
-        return 60;
-      }
-      return 0;
+  function measureIntrinsicHeight(node, availW, measure2) {
+    const pad = resolveSides(node.style.padding);
+    const margin = resolveSides(node.style.margin);
+    const innerW = Math.max(0, availW - pad.left - pad.right - margin.left - margin.right);
+    if (!isAutoHeight(node)) {
+      const fixed = resolveBoxHeight(node.style.h, 0);
+      if (!fixed.isAuto) return fixed.h + margin.top + margin.bottom;
     }
-    const avail = { x: 0, y: 0, w: innerW, h: 0 };
-    const m = child.measure(avail);
-    const pad = resolveSides(child.style.padding);
-    return m.h + pad.top + pad.bottom;
+    if (node.measure) {
+      const m = node.measure({ x: 0, y: 0, w: innerW, h: 0 });
+      return m.h + pad.top + pad.bottom + margin.top + margin.bottom;
+    }
+    const ch = node.children;
+    if (!ch || ch.length === 0) return 0;
+    const split = node.split;
+    const gap = split && "gap" in split && split.gap !== void 0 ? resolveGap(split.gap, innerW) : 0;
+    const sp = split && "pad" in split && split.pad !== void 0 ? resolveSides(split.pad) : resolveSides(void 0);
+    const childW = Math.max(0, innerW - sp.left - sp.right);
+    let inner;
+    if (split && "cols" in split) {
+      const n = Array.isArray(split.cols) ? split.cols.length : split.cols;
+      const colW = n > 0 ? (childW - gap * (n - 1)) / n : childW;
+      inner = Math.max(0, ...ch.map((c) => measureIntrinsicHeight(c, colW, measure2)));
+    } else if (split && "grid" in split) {
+      const [cols, rows] = split.grid;
+      const cellW = cols > 0 ? (childW - gap * (cols - 1)) / cols : childW;
+      const cellHs = ch.map((c) => measureIntrinsicHeight(c, cellW, measure2));
+      let tallestRow = 0;
+      for (let r = 0; r < rows; r++) {
+        const rowMax = Math.max(0, ...cellHs.slice(r * cols, r * cols + cols));
+        tallestRow = Math.max(tallestRow, rowMax);
+      }
+      inner = tallestRow * rows + gap * Math.max(0, rows - 1);
+    } else if (split && "zones" in split) {
+      inner = Math.max(0, ...Object.values(split.zones).map((z) => z.y + z.h));
+    } else {
+      const hs = ch.map((c) => measureIntrinsicHeight(c, childW, measure2));
+      inner = hs.reduce((a, b) => a + b, 0) + gap * Math.max(0, hs.length - 1);
+    }
+    return inner + sp.top + sp.bottom + pad.top + pad.bottom + margin.top + margin.bottom;
+  }
+  function childPath(parentPath, child, index) {
+    const key = child.id ?? `[${index}]`;
+    return parentPath ? `${parentPath}.${key}` : key;
   }
   function resolveLayout(root, world, hooks) {
     const measure2 = hooks?.measure ?? defaultMeasure;
     const overflow = [];
-    const resolved = resolveNode(root, world, null, { measure: measure2 }, overflow);
+    const rootPath = root.id ?? "root";
+    const resolved = resolveNode(root, world, null, { measure: measure2, overflow }, rootPath);
     const boxes = [];
     flattenResolved(resolved, boxes);
-    resolveCollisions(boxes, world);
+    if (hooks?.collide !== false) {
+      resolveCollisions(boxes, world);
+    }
     return { root: resolved, boxes, overflow };
   }
 
@@ -507,9 +565,9 @@
     function render() {
       stage.style.width = `${w}px`;
       stage.style.height = `${h}px`;
-      stage.innerHTML = opts.scene({ w, h }) + '<div id="handle" title="drag to resize">\u25E2</div>';
+      stage.innerHTML = opts.scene({ w, h }) + '<div id="handle" title="drag to resize"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div>';
       wireHandle();
-      readout.textContent = `viewport ${Math.round(w)} \xD7 ${Math.round(h)} px \u2014 drag the \u25E2 corner to reflow`;
+      readout.textContent = `viewport ${Math.round(w)} \xD7 ${Math.round(h)} px \u2014 drag the corner to reflow`;
     }
     let drag = null;
     function wireHandle() {
@@ -543,22 +601,37 @@
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
   var PALETTE = {
-    gold: { stroke: "#f5a623", fill: "rgba(245,166,35,0.12)" },
-    pink: { stroke: "#ec4899", fill: "rgba(236,72,153,0.12)" },
-    green: { stroke: "#4ade80", fill: "rgba(74,222,128,0.12)" },
-    blue: { stroke: "#38bdf8", fill: "rgba(56,189,248,0.12)" },
-    slate: { stroke: "#505068", fill: "rgba(80,80,104,0.15)" }
+    // CanWork Studios brand, light mode: a restrained amber / ember / signal
+    // trio over warm paper, plus a neutral ink. Fills are faint tints of the
+    // stroke so cards read as quiet surfaces, not blocks of color.
+    amber: { stroke: "#C98A2E", fill: "rgba(232,164,74,0.16)" },
+    ember: { stroke: "#C96B3A", fill: "rgba(201,107,58,0.14)" },
+    signal: { stroke: "#3A86CF", fill: "rgba(74,158,232,0.14)" },
+    ink: { stroke: "#5A5A52", fill: "rgba(42,42,42,0.05)" }
+  };
+  var BRAND = {
+    paper: "#F0EDE8",
+    ivory: "#FAF9F7",
+    carbon: "#141414",
+    ink: "#1E1E1E",
+    fog: "#888888",
+    line: "#DAD3C7",
+    amber: "#C98A2E",
+    mono: "'JetBrains Mono', ui-monospace, monospace",
+    body: "'DM Sans', system-ui, sans-serif",
+    display: "'Playfair Display', Georgia, serif"
   };
   function card(box, opts = {}) {
     const { x, y, w, h } = box;
-    const c = PALETTE[opts.tone ?? "slate"];
+    const c = PALETTE[opts.tone ?? "ink"];
     const fs = opts.fontSize ?? 13;
-    const lines = (opts.lines ?? []).map((ln, i) => `<tspan x="${x + 14}" dy="${i === 0 ? 0 : fs * 1.4}">${esc(ln)}</tspan>`).join("");
+    const lines = (opts.lines ?? []).map((ln, i) => `<tspan x="${x + 14}" dy="${i === 0 ? 0 : fs * 1.3}">${esc(ln)}</tspan>`).join("");
     return `
     <g>
-      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${c.fill}" stroke="${c.stroke}" stroke-width="2" />
-      ${opts.id ? `<text x="${x + 14}" y="${y + 22}" fill="${c.stroke}" font-family="ui-monospace, monospace" font-size="11" font-weight="700">${esc(opts.id)}</text>` : ""}
-      ${lines ? `<text x="${x + 14}" y="${y + (opts.id ? 42 : 24)}" fill="#e2e8f0" font-family="sans-serif" font-size="${fs}">${lines}</text>` : ""}
+      <rect x="${x + 0.75}" y="${y + 0.75}" width="${Math.max(0, w - 1.5)}" height="${Math.max(0, h - 1.5)}"
+            rx="4" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5" />
+      ${opts.id ? `<text x="${x + 14}" y="${y + 22}" fill="${c.stroke}" font-family="${BRAND.mono}" font-size="10.5" font-weight="500" letter-spacing="0.06em">${esc(opts.id.toUpperCase())}</text>` : ""}
+      ${lines ? `<text x="${x + 14}" y="${y + (opts.id ? 42 : 24)}" fill="${BRAND.carbon}" font-family="${BRAND.body}" font-size="${fs}">${lines}</text>` : ""}
     </g>`;
   }
   function svg(w, h, inner) {
@@ -566,7 +639,7 @@
     <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="${BRAND.amber}" />
         </marker>
       </defs>
       ${inner}
@@ -610,7 +683,7 @@
     let out = "";
     for (const node of boxes) {
       if (node.children && node.children.length) continue;
-      const tone = node.node.id === "title" ? "blue" : node.node.id === "col-left" ? "gold" : "green";
+      const tone = node.node.id === "title" ? "signal" : node.node.id === "col-left" ? "amber" : "ember";
       out += card(node.box, {
         id: node.node.id,
         tone,

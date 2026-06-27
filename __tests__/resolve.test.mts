@@ -210,4 +210,178 @@ function textBox(text: string, fontSize: number = 24): LNode {
   console.log("  7/7 Text auto-height: ok");
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  TWO-PASS FLOW CONTRACT  — these describe the target behavior of the
+//  bottom-up-measure / top-down-layout resolver. Auto-height children inside a
+//  split GROW to their text and push siblings; only an explicit fixed height
+//  stays fixed and emits an OverflowSignal.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── 8. Auto rows: a tall text block pushes its sibling DOWN (true flow) ──
+{
+  const root: LNode = {
+    style: {},
+    split: { rows: ["auto", "auto"], gap: 10 },
+    children: [
+      // wraps to several lines at this width
+      textBox("This is a long paragraph that will wrap into multiple lines and needs real vertical space", 24),
+      { id: "below", ...textBox("Below", 24) },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 400, h: 600 }, { measure });
+  const top = result.boxes[1].box;
+  const below = result.boxes.find((b) => b.node.id === "below")!.box;
+  // The sibling must start at or after the bottom of the grown top box (+ gap).
+  assert(
+    below.y >= top.y + top.h - 0.5,
+    `sibling pushed below grown box: below.y=${below.y} should be ≥ top.y+top.h=${top.y + top.h}`,
+  );
+  assert(top.h > 40, `top box grew to its wrapped text, got h=${top.h}`);
+  console.log("  8/12 Auto rows push siblings down: ok");
+}
+
+// ── 9. Content-based auto-height bubbles up to the ANCESTOR ──
+{
+  // Outer container has no height; its single auto-row child wraps a lot of
+  // text. The container's own resolved height must reflect that grown content.
+  const root: LNode = {
+    style: { padding: 10 },
+    children: [
+      {
+        id: "grower",
+        ...textBox("Word ".repeat(60).trim(), 20),
+      },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 300, h: 2000 }, { measure });
+  const grower = result.boxes.find((b) => b.node.id === "grower")!;
+  const single = measure("Word ".repeat(60).trim(), { fontSize: 20 }, 300 - 20 - 8);
+  assert(
+    grower.box.h > 100,
+    `deeply-wrapped text produced a tall box, got h=${grower.box.h}`,
+  );
+  assert(single.lines.length > 5, `sanity: text actually wrapped a lot (${single.lines.length} lines)`);
+  console.log("  9/12 Auto-height bubbles to ancestor: ok");
+}
+
+// ── 10. Fixed-height child still emits an OverflowSignal (and does NOT grow) ──
+{
+  const root: LNode = {
+    style: {},
+    split: { rows: ["auto", 60] },
+    children: [
+      { id: "auto-top", ...textBox("Top", 20) },
+      {
+        id: "fixed",
+        style: { padding: 4, h: 60 },
+        measure: (avail: LBox) =>
+          measure("A long sentence that cannot possibly fit inside a sixty pixel tall fixed box at all", { fontSize: 20 }, avail.w),
+      },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 300, h: 600 }, { measure });
+  const fixed = result.boxes.find((b) => b.node.id === "fixed")!;
+  assert(approx(fixed.box.h, 60, 1), `fixed box stays 60px, got ${fixed.box.h}`);
+  assert(result.overflow.length >= 1, "fixed box that can't fit its text emits an OverflowSignal");
+  assert(
+    result.overflow.some((o) => o.path && o.path.length > 0),
+    `OverflowSignal carries a non-empty path, got ${JSON.stringify(result.overflow.map((o) => o.path))}`,
+  );
+  console.log("  10/12 Fixed height overflows with path: ok");
+}
+
+// ── 11. Collision default ON: overlapping absolute badges get separated ──
+{
+  const root: LNode = {
+    style: {},
+    children: [
+      { id: "a", style: { w: 60, h: 30, pos: { x: 100, y: 100 } } },
+      { id: "b", style: { w: 60, h: 30, pos: { x: 100, y: 100 } } },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 600, h: 600 }, { measure });
+  const a = result.boxes.find((n) => n.node.id === "a")!.box;
+  const b = result.boxes.find((n) => n.node.id === "b")!.box;
+  const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  assert(!overlap, "default collision separates the two badges");
+  console.log("  11/12 Collision ON by default: ok");
+}
+
+// ── 12. Collision opt-out: { collide: false } leaves overlap intact ──
+{
+  const root: LNode = {
+    style: {},
+    children: [
+      { id: "a", style: { w: 60, h: 30, pos: { x: 100, y: 100 } } },
+      { id: "b", style: { w: 60, h: 30, pos: { x: 100, y: 100 } } },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 600, h: 600 }, { measure, collide: false });
+  const a = result.boxes.find((n) => n.node.id === "a")!.box;
+  const b = result.boxes.find((n) => n.node.id === "b")!.box;
+  assert(approx(a.x, b.x) && approx(a.y, b.y), "with collide:false the boxes keep their intended overlap");
+  console.log("  12/12 Collision opt-out honored: ok");
+}
+
+// ── 13. Deep nesting: a CONTAINER's height reflects its tall inner text, and
+//        its sibling is placed below the real bottom (not the guessed one). ──
+{
+  const root: LNode = {
+    style: {},
+    split: { rows: ["auto", "auto"], gap: 10 },
+    children: [
+      {
+        id: "container",
+        style: {},
+        children: [
+          textBox("This nested paragraph wraps into many many lines of content that should make its container tall", 20),
+        ],
+      },
+      { id: "sib", ...textBox("Sibling", 20) },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 300, h: 600 }, { measure });
+  const container = result.boxes.find((b) => b.node.id === "container")!.box;
+  const inner = result.boxes.find((b) => b.parent?.node.id === "container")!.box;
+  const sib = result.boxes.find((b) => b.node.id === "sib")!.box;
+  // The container must be at least as tall as the text it contains...
+  assert(
+    container.h >= inner.h - 0.5,
+    `container height covers its inner text: container.h=${container.h}, inner.h=${inner.h}`,
+  );
+  // ...and the sibling must sit below the container's REAL bottom.
+  assert(
+    sib.y >= container.y + container.h - 0.5,
+    `sibling below real container bottom: sib.y=${sib.y}, bottom=${container.y + container.h}`,
+  );
+  console.log("  13/14 Deep-nested container height + sibling flow: ok");
+}
+
+// ── 14. Auto text inside a COLS slot grows to content (no silent clipping) ──
+{
+  const tall = "A tall column of text that wraps into a lot of lines and needs much more vertical room than a short slot";
+  const root: LNode = {
+    style: {},
+    split: { cols: ["50%", "50%"], gap: 10 },
+    children: [
+      {
+        id: "left",
+        style: { padding: 4 },
+        measure: (avail: LBox) => measure(tall, { fontSize: 18 }, avail.w),
+      },
+      { id: "right", ...textBox("short", 18) },
+    ],
+  };
+  const result = resolveLayout(root, { x: 0, y: 0, w: 300, h: 400 }, { measure });
+  const left = result.boxes.find((b) => b.node.id === "left")!;
+  const wrapped = measure(tall, { fontSize: 18 }, left.contentFrame.w);
+  // The column's content frame should be tall enough for the wrapped text
+  // rather than silently clipping it inside the slot.
+  assert(
+    left.contentFrame.h >= wrapped.h - 0.5,
+    `auto col grows to its text: contentFrame.h=${left.contentFrame.h}, needs ${wrapped.h}`,
+  );
+  console.log("  14/14 Auto text in cols slot grows: ok");
+}
+
 console.log("\n✅ All layout engine tests passed.");

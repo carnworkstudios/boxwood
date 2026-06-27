@@ -16,7 +16,7 @@
 
 import { resolveLayout, defaultMeasure } from "../index.js";
 import type { LNode } from "../types.js";
-import { mountScene, svg, card, esc, type Viewport } from "./shell.js";
+import { mountScene, svg, card, esc, warnGlyph, type Viewport } from "./shell.js";
 
 const measure = (text: string, fontSize = 14) => (avail: { w: number }) =>
   defaultMeasure(text, { fontSize }, avail.w);
@@ -60,13 +60,13 @@ function buildScene({ w, h }: Viewport): string {
     const id = node.node.id;
     if (!id) continue;
     if (id === "badge-a" || id === "badge-b") {
-      out += card(node.box, { id, tone: "pink" });
+      out += card(node.box, { id, tone: "ember" });
       continue;
     }
     if (node.children && node.children.length) continue;
     out += card(node.box, {
       id,
-      tone: id === "auto-card" ? "gold" : "blue",
+      tone: id === "auto-card" ? "amber" : "signal",
       lines: node.textLayout?.lines ?? [],
       fontSize: id === "auto-card" ? 16 : 14,
     });
@@ -76,12 +76,12 @@ function buildScene({ w, h }: Viewport): string {
   // the engine gives you instead of silently clipping.
   if (overflow.length) {
     const o = overflow[0];
+    const msg = `OverflowSignal · ${esc(o.path)} exceeds its ${Math.round(o.box.w)}×${Math.round(o.box.h)}px box`;
     out += `
       <g>
-        <rect x="20" y="${h - 38}" width="${w - 40}" height="26" rx="6" fill="rgba(236,72,153,0.18)" stroke="#ec4899" stroke-width="1.5" />
-        <text x="32" y="${h - 20}" fill="#ec4899" font-family="ui-monospace, monospace" font-size="12">
-          ⚠ OverflowSignal — text exceeds the fixed-height box at ${Math.round(o.box.w)}×${Math.round(o.box.h)}px (${esc(o.text.slice(0, 40))}…)
-        </text>
+        <rect x="20" y="${h - 40}" width="${w - 40}" height="28" rx="4" fill="rgba(201,107,58,0.12)" stroke="#C96B3A" stroke-width="1.25" />
+        ${warnGlyph(34, h - 33, 14, "#C96B3A")}
+        <text x="58" y="${h - 21}" fill="#C96B3A" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11" letter-spacing="0.02em">${msg}</text>
       </g>`;
   }
 

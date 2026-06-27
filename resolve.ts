@@ -79,12 +79,22 @@ function resolveBoxHeight(
   return { h: 0, isAuto: true };
 }
 
+interface Ctx {
+  measure: Measure;
+  overflow: OverflowSignal[];
+}
+
+/** True when a node's height is determined by its content (no explicit fixed h). */
+function isAutoHeight(node: LNode): boolean {
+  return node.style.h === undefined || node.style.h === "auto";
+}
+
 function resolveNode(
   node: LNode,
   parentFrame: LBox,
   slotBox: LBox | null,
-  ctx: { measure: Measure },
-  overflow: OverflowSignal[],
+  ctx: Ctx,
+  path: string,
 ): ResolvedLNode {
   const margin = resolveSides(node.style.margin);
   const pad = resolveSides(node.style.padding);
@@ -97,7 +107,19 @@ function resolveNode(
 
   if (slotBox) {
     boxW = slotBox.w;
-    boxH = slotBox.h !== 0 ? slotBox.h : hRes.h;
+    // A slot only pins the height of a child that asked to be pinned (fixed h).
+    // An auto-height child instead grows to its own measured content (PASS 2 of
+    // the two-pass resolve), so it can push siblings rather than clip silently.
+    if (slotBox.h !== 0 && !hRes.isAuto) {
+      boxH = slotBox.h;
+    } else if (slotBox.h !== 0 && hRes.isAuto) {
+      // The slot carries the intrinsic height computed bottom-up in pass 1, but
+      // a content-tall child may still exceed it — take the larger of the two.
+      const innerW = Math.max(0, slotBox.w - pad.left - pad.right - margin.left - margin.right);
+      boxH = Math.max(slotBox.h, measureIntrinsicHeight(node, innerW, ctx.measure));
+    } else {
+      boxH = hRes.h;
+    }
     boxX = slotBox.x;
     boxY = slotBox.y;
   } else {
@@ -112,7 +134,9 @@ function resolveNode(
   let contentFrame: LBox = applyPad(margined, pad);
 
   // Fix container auto-height BEFORE resolving children — children need a real
-  // content frame for row distribution.
+  // content frame for row distribution. A non-slotted auto container fills its
+  // parent frame (it is the outermost box of its subtree, like <body>); a
+  // SLOTTED auto container instead grew to its content above, so respect that.
   if (boxH === 0 && !node.measure) {
     margined.h = parentFrame.h;
     contentFrame.h = Math.max(0, parentFrame.h - pad.top - pad.bottom);
@@ -122,10 +146,10 @@ function resolveNode(
   let textLayout: TextLayout | undefined;
 
   if (node.split) {
-    children = resolveSplitChildren(node, node.split, contentFrame, ctx, overflow);
+    children = resolveSplitChildren(node, node.split, contentFrame, ctx, path);
   } else if (node.children && node.children.length > 0) {
-      children = node.children.map((child) =>
-      resolveNode(child, contentFrame, null, ctx, overflow),
+      children = node.children.map((child, i) =>
+      resolveNode(child, contentFrame, null, ctx, childPath(path, child, i)),
     );
   }
 
@@ -137,14 +161,16 @@ function resolveNode(
       ascent: measured.ascent,
       descent: measured.descent,
     };
-    if (boxH === 0) {
+    // Auto-height text grows its box to the measured content (and a slotted
+    // auto child already had its slot grown above). Only a node whose height
+    // was explicitly fixed keeps it — and overflows when the text won't fit.
+    if (isAutoHeight(node)) {
       const totalH = measured.h + pad.top + pad.bottom;
-      margined.h = Math.max(totalH, 1);
-      contentFrame.h = Math.max(measured.h, 1);
-    }
-    if (measured.h > contentFrame.h && contentFrame.h > 0) {
-      overflow.push({
-        path: "",
+      margined.h = Math.max(margined.h, totalH, 1);
+      contentFrame.h = Math.max(contentFrame.h, measured.h, 1);
+    } else if (measured.h > contentFrame.h && contentFrame.h > 0) {
+      ctx.overflow.push({
+        path,
         box: contentFrame,
         fontSize: textLayout.fontSize,
         text: measured.lines.join(" "),
@@ -170,8 +196,8 @@ function resolveSplitChildren(
   node: LNode,
   split: Split,
   contentFrame: LBox,
-  ctx: { measure: Measure },
-  overflow: OverflowSignal[],
+  ctx: Ctx,
+  path: string,
 ): ResolvedLNode[] {
   const ch = node.children;
   if (!ch || ch.length === 0) return [];
@@ -179,77 +205,128 @@ function resolveSplitChildren(
   const gap = "gap" in split && split.gap !== undefined ? resolveGap(split.gap, contentFrame.w) : 0;
   const sp = "pad" in split && split.pad !== undefined ? resolveSides(split.pad as any) : resolveSides(undefined);
 
+  const place = (cells: LBox[]) =>
+    ch.map((child, i) => {
+      const cell = cells[Math.min(i, cells.length - 1)];
+      return resolveNode(child, contentFrame, cell, ctx, childPath(path, child, i));
+    });
+
   if ("rows" in split && (typeof split.rows === "number" || Array.isArray(split.rows))) {
     const innerW = contentFrame.w - sp.left - sp.right;
-    const intrinsicHs: number[] = [];
-    for (let i = 0; i < ch.length; i++) {
-      intrinsicHs.push(estimateIntrinsicHeight(ch[i], innerW, ctx.measure));
-    }
+    // PASS 1 (bottom-up): every child reports the real height it needs at the
+    // available width — recursing through nested containers — so `auto` rows
+    // are sized to content instead of a guess.
+    const intrinsicHs = ch.map((c) => measureIntrinsicHeight(c, innerW, ctx.measure));
     const innerH = contentFrame.h - sp.top - sp.bottom;
     const rowSpecs = resolveRowHeights(split.rows, innerH, gap, intrinsicHs);
-    const cells = splitRows(contentFrame, rowSpecs, gap, sp);
-    return ch.map((child, i) => {
-      const cell = cells[Math.min(i, cells.length - 1)];
-      return resolveNode(child, contentFrame, cell, ctx, overflow);
-    });
+    return place(splitRows(contentFrame, rowSpecs, gap, sp));
   }
 
   if ("cols" in split && (typeof split.cols === "number" || Array.isArray(split.cols))) {
     const innerW = contentFrame.w - sp.left - sp.right;
     const colSpecs = resolveColWidths(split.cols, innerW, gap);
-    const cells = splitCols(contentFrame, colSpecs, gap, sp);
-    return ch.map((child, i) => {
-      const cell = cells[Math.min(i, cells.length - 1)];
-      return resolveNode(child, contentFrame, cell, ctx, overflow);
-    });
+    return place(splitCols(contentFrame, colSpecs, gap, sp));
   }
 
   if ("grid" in split) {
-    const cells = splitGrid(contentFrame, split.grid, gap, sp);
-    return ch.map((child, i) => {
-      const cell = cells[Math.min(i, cells.length - 1)];
-      return resolveNode(child, contentFrame, cell, ctx, overflow);
-    });
+    return place(splitGrid(contentFrame, split.grid, gap, sp));
   }
 
   if ("zones" in split) {
-    const cells = splitZones(split.zones);
-    return ch.map((child, i) => {
-      const cell = cells[Math.min(i, cells.length - 1)];
-      return resolveNode(child, contentFrame, cell, ctx, overflow);
-    });
+    return place(splitZones(split.zones));
   }
 
   return [];
 }
 
-function estimateIntrinsicHeight(
-  child: LNode,
-  innerW: number,
-  measure: Measure,
-): number {
-  if (!child.measure) {
-    if (child.children && child.children.length > 0) {
-      return 60;  // default min row height for containers
-    }
-    return 0;
+/**
+ * PASS 1 — bottom-up intrinsic height.
+ *
+ * Returns the content height (including the node's own padding) that `node`
+ * needs to contain everything inside it at the given available width. This is
+ * the half the single-pass resolver lacked: a child's measured/wrapped height
+ * travels back UP so ancestors and sibling slots can be sized before final
+ * placement, instead of being guessed (the old hardcoded `60`).
+ */
+function measureIntrinsicHeight(node: LNode, availW: number, measure: Measure): number {
+  const pad = resolveSides(node.style.padding);
+  const margin = resolveSides(node.style.margin);
+  const innerW = Math.max(0, availW - pad.left - pad.right - margin.left - margin.right);
+
+  // A node with an explicit fixed height contributes exactly that height.
+  if (!isAutoHeight(node)) {
+    const fixed = resolveBoxHeight(node.style.h, 0);
+    if (!fixed.isAuto) return fixed.h + margin.top + margin.bottom;
   }
-  const avail: LBox = { x: 0, y: 0, w: innerW, h: 0 };
-  const m = child.measure(avail);
-  const pad = resolveSides(child.style.padding);
-  return m.h + pad.top + pad.bottom;
+
+  // Leaf text: measure and wrap at the available content width.
+  if (node.measure) {
+    const m = node.measure({ x: 0, y: 0, w: innerW, h: 0 });
+    return m.h + pad.top + pad.bottom + margin.top + margin.bottom;
+  }
+
+  // Container: combine children's intrinsic heights per split type.
+  const ch = node.children;
+  if (!ch || ch.length === 0) return 0;
+
+  const split = node.split;
+  const gap =
+    split && "gap" in split && split.gap !== undefined ? resolveGap(split.gap, innerW) : 0;
+  const sp =
+    split && "pad" in split && (split as any).pad !== undefined
+      ? resolveSides((split as any).pad)
+      : resolveSides(undefined);
+  const childW = Math.max(0, innerW - sp.left - sp.right);
+
+  let inner: number;
+  if (split && "cols" in split) {
+    // Columns sit side by side — the row is as tall as the TALLEST column.
+    const n = Array.isArray(split.cols) ? split.cols.length : split.cols;
+    const colW = n > 0 ? (childW - gap * (n - 1)) / n : childW;
+    inner = Math.max(0, ...ch.map((c) => measureIntrinsicHeight(c, colW, measure)));
+  } else if (split && "grid" in split) {
+    const [cols, rows] = split.grid;
+    const cellW = cols > 0 ? (childW - gap * (cols - 1)) / cols : childW;
+    const cellHs = ch.map((c) => measureIntrinsicHeight(c, cellW, measure));
+    let tallestRow = 0;
+    for (let r = 0; r < rows; r++) {
+      const rowMax = Math.max(0, ...cellHs.slice(r * cols, r * cols + cols));
+      tallestRow = Math.max(tallestRow, rowMax);
+    }
+    inner = tallestRow * rows + gap * Math.max(0, rows - 1);
+  } else if (split && "zones" in split) {
+    // Absolutely-zoned children don't stack; take the lowest bottom edge.
+    inner = Math.max(0, ...Object.values(split.zones).map((z) => z.y + z.h));
+  } else {
+    // rows split OR a plain (no-split) container: children stack vertically.
+    const hs = ch.map((c) => measureIntrinsicHeight(c, childW, measure));
+    inner = hs.reduce((a, b) => a + b, 0) + gap * Math.max(0, hs.length - 1);
+  }
+
+  return inner + sp.top + sp.bottom + pad.top + pad.bottom + margin.top + margin.bottom;
+}
+
+/** Build the dotted path used in OverflowSignal (e.g. "root.children[1].grid[3]"). */
+function childPath(parentPath: string, child: LNode, index: number): string {
+  const key = child.id ?? `[${index}]`;
+  return parentPath ? `${parentPath}.${key}` : key;
 }
 
 export function resolveLayout(
   root: LNode,
   world: LBox,
-  hooks?: { measure?: Measure },
+  hooks?: { measure?: Measure; collide?: boolean },
 ): LayoutResult {
   const measure = hooks?.measure ?? defaultMeasure;
   const overflow: OverflowSignal[] = [];
-  const resolved = resolveNode(root, world, null, { measure }, overflow);
+  const rootPath = root.id ?? "root";
+  const resolved = resolveNode(root, world, null, { measure, overflow }, rootPath);
   const boxes: ResolvedLNode[] = [];
   flattenResolved(resolved, boxes);
-  resolveCollisions(boxes, world);
+  // Collision separation is a post-layout geometric pass; on by default, opt
+  // out with { collide: false } when overlap is intentional.
+  if (hooks?.collide !== false) {
+    resolveCollisions(boxes, world);
+  }
   return { root: resolved, boxes, overflow };
 }

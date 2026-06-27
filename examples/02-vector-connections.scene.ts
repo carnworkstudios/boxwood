@@ -20,11 +20,11 @@ const measure = (text: string, fontSize = 14) => (avail: { w: number }) =>
   defaultMeasure(text, { fontSize }, avail.w);
 
 const NODES: Record<string, { tone: Tone; text: string }> = {
-  source: { tone: "blue", text: "Source — ingest stream" },
-  "worker-a": { tone: "green", text: "Worker A — resize images" },
-  "worker-b": { tone: "green", text: "Worker B — transcode video" },
-  "worker-c": { tone: "green", text: "Worker C — extract text" },
-  sink: { tone: "pink", text: "Sink — write to store" },
+  source: { tone: "signal", text: "Source — ingest stream" },
+  "worker-a": { tone: "amber", text: "Worker A — resize images" },
+  "worker-b": { tone: "amber", text: "Worker B — transcode video" },
+  "worker-c": { tone: "amber", text: "Worker C — extract text" },
+  sink: { tone: "ember", text: "Sink — write to store" },
 };
 
 function leaf(id: string): LNode {
@@ -69,7 +69,7 @@ function buildScene({ w, h }: Viewport): string {
     for (const wk of workers) {
       if (!wk) continue;
       for (const d of [connect(src, wk).d, connect(wk, snk).d]) {
-        arrows += `<path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)" opacity="0.85" />`;
+        arrows += `<path d="${d}" fill="none" stroke="#C98A2E" stroke-width="1.75" stroke-dasharray="5 4" marker-end="url(#arrow)" opacity="0.8" />`;
       }
     }
   }

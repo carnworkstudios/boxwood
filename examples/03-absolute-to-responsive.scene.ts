@@ -59,7 +59,7 @@ function buildScene({ w, h }: Viewport): string {
   let out = "";
   for (const node of boxes) {
     if (node.children && node.children.length) continue;
-    const tone = node.node.id === "title" ? "blue" : node.node.id === "col-left" ? "gold" : "green";
+    const tone = node.node.id === "title" ? "signal" : node.node.id === "col-left" ? "amber" : "ember";
     out += card(node.box, {
       id: node.node.id,
       tone,

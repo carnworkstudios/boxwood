@@ -13,6 +13,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "test": "npx tsx __tests__/resolve.test.mts",
     "build": "tsc",
     "build:bundle": "esbuild index.ts --bundle --minify --format=iife --global-name=Boxwood --outfile=dist/boxwood.global.js",
     "build:all": "npm run build && npm run build:bundle",

@@ -4,6 +4,8 @@
   "description": "A Declarative Box-Split and Collision Engine for Vector Graphics. It provides a CSS-like layout grammar (padding, gap, cols, rows, auto-height), but outputs a clean JSON coordinate tree that any visual canvas (SVG, <canvas>, WebGL) can use to draw pixels, connectors, and particles.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "unpkg": "dist/boxwood.global.js",
+  "jsdelivr": "dist/boxwood.global.js",
   "type": "module",
   "files": [
     "dist",
@@ -12,7 +14,9 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "build:bundle": "esbuild index.ts --bundle --minify --format=iife --global-name=Boxwood --outfile=dist/boxwood.global.js",
+    "build:all": "npm run build && npm run build:bundle",
+    "prepublishOnly": "npm run build:all"
   },
   "keywords": [
     "layout-engine",
@@ -35,6 +39,10 @@
   "author": "Canwork Studios",
   "license": "MIT",
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@canwork/boxwood": "^1.0.0"
   }
 }

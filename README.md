@@ -39,6 +39,22 @@ const result = resolveLayout(layoutTree, boundary, { measure: defaultMeasure });
 console.log(result.boxes);
 ```
 
+### CDN (no build step)
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@canwork/boxwood/dist/boxwood.global.js"></script>
+<script>
+  const { resolveLayout, defaultMeasure } = Boxwood;
+  const result = resolveLayout(layoutTree, boundary, { measure: defaultMeasure });
+</script>
+```
+
+Or via unpkg:
+
+```html
+<script src="https://unpkg.com/@canwork/boxwood/dist/boxwood.global.js"></script>
+```
+
 ## Layout flow at a glance
 
 ```mermaid

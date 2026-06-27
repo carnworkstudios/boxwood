@@ -1,26 +1,94 @@
 # Boxwood
 
-A Declarative Box-Split and Collision Engine for Vector Graphics. It provides a CSS-like layout grammar (padding, gap, cols, rows, auto-height), but outputs a clean JSON coordinate tree that any visual canvas (SVG, `<canvas>`, WebGL) can use to draw pixels, connectors, and particles.
+[![npm version](https://img.shields.io/npm/v/@canwork/boxwood?style=for-the-badge)](https://www.npmjs.com/package/@canwork/boxwood) [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/canwork/boxwood/ci.yml?branch=main&style=for-the-badge)](https://github.com/canwork/boxwood/actions/workflows/ci.yml) [![License](https://img.shields.io/npm/l/@canwork/boxwood?style=for-the-badge)](LICENSE)
 
-Unlike typical layout libraries (like Yoga or standard web browsers) that hide resolved position values inside a black box, **Boxwood** exposes absolute coordinate geometry (`{x, y, w, h}`) directly. This allows you to draw rich, responsive layouts, dynamically route connecting paths, separate overlapping elements, and orchestrate staggered visual entrances.
+A Declarative Box-Split and Collision Engine for Vector Graphics. It provides a CSS-like layout grammar (`padding`, `gap`, `cols`, `rows`, `auto-height`) and resolves it into a clean JSON coordinate tree for any visual canvas (SVG, `<canvas>`, WebGL).
+
+Unlike typical layout libraries (like Yoga or standard web browsers) that hide resolved position values inside a black box, **Boxwood** exposes absolute coordinate geometry (`{x, y, w, h}`) directly. That makes it easy to draw responsive visuals, route connectors, and manage collision-safe compositions.
 
 ---
 ![Demo Animation](./brutalist_playground_visual_1782343082910.webp)
+
+## Quick start
+
+```bash
+npm install @canwork/boxwood
+```
+
+```ts
+import { resolveLayout, defaultMeasure, LNode } from "@canwork/boxwood";
+
+const layoutTree: LNode = {
+  style: { padding: 20 },
+  split: { cols: ["60%", "40%"], gap: 15 },
+  children: [
+    { id: "main-panel", style: { w: "100%", h: "100%" } },
+    {
+      style: { w: "100%", h: "100%" },
+      split: { rows: 2, gap: 10 },
+      children: [
+        { id: "sub-card-1", style: { padding: 12 } },
+        { id: "sub-card-2", style: { padding: 12 } },
+      ],
+    },
+  ],
+};
+
+const boundary = { x: 0, y: 0, w: 1920, h: 1080 };
+const result = resolveLayout(layoutTree, boundary, { measure: defaultMeasure });
+console.log(result.boxes);
+```
+
+## Layout flow at a glance
+
+```mermaid
+flowchart TD
+    A["LNode tree\nstyle / split / children"] --> B["resolveLayout(root, boundary, opts)"]
+    B --> C["Resolve layout rules\npadding, gap, cols, rows, grid"]
+    B --> D["Measure content\ntext wrap / overflow"]
+    C --> E["Compute contentFrame and box geometry"]
+    D --> E
+    E --> F["Resolved boxes\n{x, y, w, h}"]
+    F --> G["Render with SVG / Canvas / WebGL"]
+```
+
+```mermaid
+flowchart TB
+    R["root LNode"] --> C1["child LNode"]
+    R --> C2["child LNode"]
+    C1 --> G1["grandchild LNode"]
+    C2 --> G2["grandchild LNode"]
+    C1 --> G3["grandchild LNode"]
+    C2 --> G4["grandchild LNode"]
+    G1 --> B1["resolved box"]
+    G2 --> B2["resolved box"]
+    G3 --> B3["resolved box"]
+    G4 --> B4["resolved box"]
+```
+
 ## Why Boxwood?
 
-| Layout Library | Declarative Box Model (Grid, Cols, Bento) | Programmatic Coordinates for Lines/Arrows | Lightweight & Zero-DOM | Collision Separation |
+Boxwood is designed for developers who need a declarative layout model but also need the exact coordinates to render shapes, arrows, labels, and collision-aware content.
+
+| Layout Library | Declarative Box Model | Coordinates for Lines/Arrows | Lightweight & Zero-DOM | Collision Separation |
 | :--- | :---: | :---: | :---: | :---: |
-| **Yoga / Flexbox** | ✅ Yes | ❌ No | ⚠️ Complex C++ Bindings | ❌ No |
-| **D3 / Cytoscape** | ❌ No | ✅ Yes | ✅ Yes | ⚠️ Force-Directed |
+| **Yoga / Flexbox** | ✅ Yes | ❌ No | ⚠️ Complex C++ bindings | ❌ No |
+| **D3 / Cytoscape** | ❌ No | ✅ Yes | ✅ Yes | ⚠️ Force-directed |
 | **Boxwood** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+
+### What Boxwood gives you
+
+- Declarative layout rules for cols, rows, grids, gap, padding, margin, and auto sizing
+- Absolute coordinate output ready for SVG, `<canvas>`, WebGL, or custom rendering
+- Nested layout composition with resolved geometry for every node
+- Text measurement and overflow-aware sizing via `measure`
+- Collision resolution so layout boxes do not overlap unexpectedly
 
 ---
 
-## Installation
+## Demo
 
-```sh
-npm install @canwork/boxwood
-```
+Open `examples/interactive-demo.html` in your browser to see the engine running with a live resize demo.
 
 ---
 

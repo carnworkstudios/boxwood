@@ -24,6 +24,14 @@
     "declarative-layout",
     "remotion"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carnworkstudios/boxwood.git"
+  },
+  "bugs": {
+    "url": "https://github.com/carnworkstudios/boxwood/issues"
+  },
+  "homepage": "https://github.com/carnworkstudios/boxwood#readme",
   "author": "Canwork Studios",
   "license": "MIT",
   "devDependencies": {

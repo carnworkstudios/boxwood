@@ -16,7 +16,8 @@
     "build": "tsc",
     "build:bundle": "esbuild index.ts --bundle --minify --format=iife --global-name=Boxwood --outfile=dist/boxwood.global.js",
     "build:all": "npm run build && npm run build:bundle",
-    "prepublishOnly": "npm run build:all"
+    "prepublishOnly": "npm run build:all",
+    "examples": "tsx examples/build.ts"
   },
   "keywords": [
     "layout-engine",
@@ -40,9 +41,7 @@
   "license": "MIT",
   "devDependencies": {
     "esbuild": "^0.28.1",
+    "tsx": "^4.19.0",
     "typescript": "^5.4.5"
-  },
-  "dependencies": {
-    "@canwork/boxwood": "^1.0.0"
   }
 }

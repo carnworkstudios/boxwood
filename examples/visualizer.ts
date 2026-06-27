@@ -18,46 +18,50 @@ export function exportHtml(
 ) {
   let boxRects = "";
   boxes.forEach((node) => {
-    // Skip root node so we don't draw a massive overlapping outer container
-    if (node.node.id === "bento-root" || node.node.id === "responsive-wrapper" || node.node.id === "vertical-stack-root" || node.node.id === "pipeline-root") {
+    // Containers (split parents) are structural, not drawable content — skip
+    // them so only leaf cards render, exactly like the production renderer
+    // skips `isContainer` nodes in SvgVisualRenderer.tsx.
+    if (node.node.children && node.node.children.length > 0) {
       return;
     }
-    
+
     const { x, y, w, h } = node.box;
-    
+
     // Pick nice colors representing themes
     let strokeColor = "#505068";
     let fillColor = "rgba(80, 80, 104, 0.15)";
-    if (node.node.id && (node.node.id.includes("main") || node.node.id.includes("dynamic"))) {
+    if (node.node.id && (node.node.id.includes("main") || node.node.id.includes("dynamic") || node.node.id.includes("hero"))) {
       strokeColor = "#F5A623"; // Gold/Amber
       fillColor = "rgba(245, 166, 35, 0.12)";
-    } else if (node.node.id && (node.node.id.includes("sub") || node.node.id.includes("bottom"))) {
+    } else if (node.node.id && (node.node.id.includes("sub") || node.node.id.includes("bottom") || node.node.id.includes("sink"))) {
       strokeColor = "#ec4899"; // Pink
       fillColor = "rgba(236, 72, 153, 0.12)";
-    } else if (node.node.id && node.node.id.includes("step")) {
+    } else if (node.node.id && (node.node.id.includes("step") || node.node.id.includes("worker") || node.node.id.includes("kpi"))) {
       strokeColor = "#4ADE80"; // Green
       fillColor = "rgba(74, 222, 128, 0.12)";
-    } else if (node.node.id && node.node.id.includes("span")) {
+    } else if (node.node.id && (node.node.id.includes("span") || node.node.id.includes("source") || node.node.id.includes("body"))) {
       strokeColor = "#38bdf8"; // Light Blue
       fillColor = "rgba(56, 189, 248, 0.12)";
     }
-    
+
     let textLines = "";
-    if (node.textLayout) {
-      // Split text wraps into tspan lines
+    let textBlockHeight = 0;
+    if (node.textLayout && node.textLayout.lines.length > 0) {
+      const fontSize = 13;
+      const lineHeight = fontSize * 1.4;
+      textBlockHeight = node.textLayout.lines.length * lineHeight;
       textLines = node.textLayout.lines
-        .map((line, idx) => `<tspan x="${x + 16}" dy="${idx === 0 ? 0 : 20}">${line}</tspan>`)
+        .map((line, idx) => `<tspan x="${x + 16}" dy="${idx === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`)
         .join("");
     }
-    
+
     boxRects += `
       <!-- Card: ${node.node.id || "Anonymous"} -->
       <g>
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-        <text x="${x + 16}" y="${y + 32}" fill="${strokeColor}" font-family="monospace" font-size="14" font-weight="bold">${node.node.id || "card"}</text>
-        <text x="${x + 16}" y="${y + 50}" fill="#8a8a9a" font-family="sans-serif" font-size="11">${Math.round(w)}px x ${Math.round(h)}px</text>
-        ${textLines ? `<text x="${x + 16}" y="${y + 80}" fill="#e2e8f0" font-family="sans-serif" font-size="13">${textLines}</text>` : ""}
+        <text x="${x + 16}" y="${y + 22}" fill="${strokeColor}" font-family="monospace" font-size="11" font-weight="bold">${node.node.id || "card"} — ${Math.round(w)}x${Math.round(h)}px</text>
+        ${textLines ? `<text x="${x + 16}" y="${y + 44}" fill="#e2e8f0" font-family="sans-serif" font-size="13">${textLines}</text>` : ""}
       </g>
     `;
   });
@@ -110,10 +114,10 @@ export function exportHtml(
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
       <!-- Grid Background -->
       <rect width="100%" height="100%" fill="none" />
-      
+
       <!-- Resolved Elements -->
       ${boxRects}
-      
+
       <!-- Custom Connections & Arrows -->
       ${svgContent}
     </svg>
@@ -124,4 +128,8 @@ export function exportHtml(
   const outputPath = path.join(__dirname, filename);
   fs.writeFileSync(outputPath, html, "utf8");
   console.log(`\n🎉 Visual preview generated at: ${outputPath}`);
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Boxwood — 02 — Branching Vector Connections</title>
+<title>Boxwood — 04 — Auto-Height, Overflow, and Collision Solving</title>
 <style>
   :root { --bg:#0c0c14; --panel:#141424; --line:#2d2d3d; --text:#e2e8f0; --muted:#8a8a9a; --accent:#38bdf8; }
   * { box-sizing: border-box; }
@@ -42,8 +42,8 @@
 </head>
 <body>
 <header>
-  <h1>02 — Branching Vector Connections</h1>
-  <p>A 1-source / 3-worker / 1-sink pipeline. Resize narrower than it is tall and the split flips from columns to rows; connect() picks facing edges from relative position alone, so the 6 curves stay correctly routed in both orientations. Card text grows its box via the engine's own auto-height, never overflowing.</p>
+  <h1>04 — Auto-Height, Overflow, and Collision Solving</h1>
+  <p>Top card has no height — it grows to contain its text at any width. Bottom card has a FIXED height; shrink the panel until the wrapped text can't fit and the engine reports a real OverflowSignal in a banner below. Two badges placed at the same coordinate get nudged apart by resolveCollisions.</p>
 </header>
 <div class="controls">
   <button data-w="900" data-h="540">🖥️ Wide</button>
@@ -496,42 +496,6 @@
     return { root: resolved, boxes, overflow };
   }
 
-  // examples/kit.ts
-  function anchorOf(box, side) {
-    const { x, y, w, h } = box;
-    switch (side) {
-      case "top":
-        return { x: x + w / 2, y };
-      case "bottom":
-        return { x: x + w / 2, y: y + h };
-      case "left":
-        return { x, y: y + h / 2 };
-      case "right":
-        return { x: x + w, y: y + h / 2 };
-    }
-  }
-  function nearestSides(a, b) {
-    const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
-    const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-    const dx = bc.x - ac.x;
-    const dy = bc.y - ac.y;
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return dx >= 0 ? { from: "right", to: "left" } : { from: "left", to: "right" };
-    }
-    return dy >= 0 ? { from: "bottom", to: "top" } : { from: "top", to: "bottom" };
-  }
-  function connect(a, b) {
-    const { from, to } = nearestSides(a, b);
-    const fp = anchorOf(a, from);
-    const tp = anchorOf(b, to);
-    const horizontal = from === "left" || from === "right";
-    const offset = Math.max(40, (horizontal ? Math.abs(tp.x - fp.x) : Math.abs(tp.y - fp.y)) * 0.4);
-    const c1 = horizontal ? { x: fp.x + (from === "right" ? offset : -offset), y: fp.y } : { x: fp.x, y: fp.y + (from === "bottom" ? offset : -offset) };
-    const c2 = horizontal ? { x: tp.x + (to === "left" ? -offset : offset), y: tp.y } : { x: tp.x, y: tp.y + (to === "top" ? -offset : offset) };
-    const d = `M ${fp.x} ${fp.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${tp.x} ${tp.y}`;
-    return { d, from: fp, to: tp };
-  }
-
   // examples/shell.ts
   var MIN = { w: 300, h: 240 };
   var MAX = { w: 1100, h: 780 };
@@ -609,57 +573,60 @@
     </svg>`;
   }
 
-  // examples/02-vector-connections.scene.ts
+  // examples/04-dynamic-reflow-overflow.scene.ts
   var measure = (text, fontSize = 14) => (avail) => defaultMeasure(text, { fontSize }, avail.w);
-  var NODES = {
-    source: { tone: "blue", text: "Source \u2014 ingest stream" },
-    "worker-a": { tone: "green", text: "Worker A \u2014 resize images" },
-    "worker-b": { tone: "green", text: "Worker B \u2014 transcode video" },
-    "worker-c": { tone: "green", text: "Worker C \u2014 extract text" },
-    sink: { tone: "pink", text: "Sink \u2014 write to store" }
-  };
-  function leaf(id) {
-    return { id, style: { padding: 12 }, measure: measure(NODES[id].text, 14) };
-  }
-  function buildTree(orientation) {
-    const outer = orientation === "wide" ? { cols: 3, gap: 28 } : { rows: 3, gap: 24 };
-    const innerWorkers = orientation === "wide" ? { rows: 3, gap: 16 } : { cols: 3, gap: 16 };
+  var TOP_TEXT = "This card has no fixed height \u2014 it grows to contain its wrapped text at any width.";
+  var BOTTOM_TEXT = "This card is pinned to a fixed height. Narrow the panel until its wrapped text no longer fits inside that height and the engine emits a real OverflowSignal you can react to \u2014 shrink the font, paginate, or show a 'more' link.";
+  function buildTree() {
     return {
-      style: { padding: 24 },
-      split: outer,
+      style: { padding: 20 },
       children: [
-        { style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [leaf("source")] },
-        { style: { w: "100%", h: "100%" }, split: innerWorkers, children: [leaf("worker-a"), leaf("worker-b"), leaf("worker-c")] },
-        { style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [leaf("sink")] }
+        // AUTO-HEIGHT: no `h`, so the box grows to the measured text. Watch it get
+        // taller as you narrow the panel and the copy wraps onto more lines.
+        { id: "auto-card", style: { padding: 16, pos: { x: 0, y: 0 } }, measure: measure(TOP_TEXT, 16) },
+        // FIXED HEIGHT: an explicit numeric `h`. When the wrapped text needs more
+        // than 100px the engine raises an OverflowSignal instead of growing — the
+        // opposite of the auto card above.
+        { id: "fixed-card", style: { padding: 16, h: 100, pos: { x: 0, y: "42%" } }, measure: measure(BOTTOM_TEXT, 15) },
+        // COLLISION: two badges placed at the SAME coordinate. resolveCollisions
+        // (run inside resolveLayout) nudges them apart so they never overlap.
+        { id: "badge-a", style: { w: 70, h: 28, pos: { x: "72%", y: "40%" } } },
+        { id: "badge-b", style: { w: 70, h: 28, pos: { x: "72%", y: "40%" } } }
       ]
     };
   }
   function buildScene({ w, h }) {
-    const tree = buildTree(w >= h ? "wide" : "tall");
-    const { boxes } = resolveLayout(tree, { x: 0, y: 0, w, h }, { measure: defaultMeasure });
-    const box = (id) => boxes.find((n) => n.node.id === id)?.box;
-    let cards = "";
+    const result = resolveLayout(buildTree(), { x: 0, y: 0, w, h }, { measure: defaultMeasure });
+    const { boxes, overflow } = result;
+    let out = "";
     for (const node of boxes) {
-      if (node.children && node.children.length) continue;
-      const meta = NODES[node.node.id ?? ""];
-      if (!meta) continue;
-      cards += card(node.box, { id: node.node.id, tone: meta.tone, lines: node.textLayout?.lines ?? [] });
-    }
-    const src = box("source");
-    const snk = box("sink");
-    const workers = ["worker-a", "worker-b", "worker-c"].map(box);
-    let arrows = "";
-    if (src && snk) {
-      for (const wk of workers) {
-        if (!wk) continue;
-        for (const d of [connect(src, wk).d, connect(wk, snk).d]) {
-          arrows += `<path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)" opacity="0.85" />`;
-        }
+      const id = node.node.id;
+      if (!id) continue;
+      if (id === "badge-a" || id === "badge-b") {
+        out += card(node.box, { id, tone: "pink" });
+        continue;
       }
+      if (node.children && node.children.length) continue;
+      out += card(node.box, {
+        id,
+        tone: id === "auto-card" ? "gold" : "blue",
+        lines: node.textLayout?.lines ?? [],
+        fontSize: id === "auto-card" ? 16 : 14
+      });
     }
-    return svg(w, h, cards + arrows);
+    if (overflow.length) {
+      const o = overflow[0];
+      out += `
+      <g>
+        <rect x="20" y="${h - 38}" width="${w - 40}" height="26" rx="6" fill="rgba(236,72,153,0.18)" stroke="#ec4899" stroke-width="1.5" />
+        <text x="32" y="${h - 20}" fill="#ec4899" font-family="ui-monospace, monospace" font-size="12">
+          \u26A0 OverflowSignal \u2014 text exceeds the fixed-height box at ${Math.round(o.box.w)}\xD7${Math.round(o.box.h)}px (${esc(o.text.slice(0, 40))}\u2026)
+        </text>
+      </g>`;
+    }
+    return svg(w, h, out);
   }
-  mountScene({ scene: buildScene, initialW: 900, initialH: 520 });
+  mountScene({ scene: buildScene, initialW: 760, initialH: 560 });
 })();
 
 </script>

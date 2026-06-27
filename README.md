@@ -195,16 +195,26 @@ When visual cards enter with scale spring animations, or dynamic data changes th
 
 ## Visual Examples & Use Cases
 
-To showcase the responsiveness and design rules of the layout solver, we built a **Google Stitch Stark Brutalist Playground** in the `examples/` directory:
+### Start here — one self-contained page, no build step
 
-* **[interactive-demo.html](file:///Users/bonzai-carn/Documents/CanworkStudios/content-generator/storyboard/layout-engine/examples/interactive-demo.html)**: Open this file directly in any browser. It renders an interactive viewport with a corner drag-handle, running the layout solver in real-time as you scale or squeeze the container.
+**[`examples/showcase.html`](examples/showcase.html)** — open it directly in any browser. It loads Boxwood from a CDN and runs one complete use case: a declarative pipeline dashboard that re-resolves on every resize. Drag the ◢ corner and the *same* tree reflows from columns to rows while the SVG connectors re-route to follow the boxes. The entire integration is the `drawScene()` function at the bottom of the file — read it to see exactly how you'd wire Boxwood into your own project: build a tree → `resolveLayout()` → draw the boxes → connect their coordinates.
 
-Additionally, we have prepared self-contained console scripts demonstrating each use case:
+### Four worked TypeScript scenes
 
-1. **`01-bento-grid.ts`**: Builds a dashboard-style "Bento box" grid with side-by-side splits and shows how it adapts dynamically between desktop and mobile portrait layout shapes.
-2. **`02-vector-connections.ts`**: Demonstrates horizontal pipeline layout structures, retrieving coordinate boxes, and generating Bezier path coordinates to draw custom SVG connection arrows.
-3. **`03-absolute-to-responsive.ts`**: Illustrates how to take a set of static, absolute coordinate elements (e.g. from PDF.js) and wrap them into a responsive Boxwood column grid.
-4. **`04-dynamic-reflow-overflow.ts`**: Walks through the dynamic text measurement system, showing how text wraps and shifts downstream sibling cards downwards to prevent overlap, alongside emitting overflow alerts.
+Each scene is a real `*.scene.ts` module — the way you'd actually structure Boxwood inside a TypeScript app. Run the build to bundle them into interactive, resizable HTML pages:
+
+```bash
+npm run examples   # → writes examples/01..04 *.html
+```
+
+Then open any of the generated pages and drag the corner handle:
+
+1. **`01-bento-grid.scene.ts`**: A dashboard "Bento" grid built from nested col/row splits, with a hero tile and a KPI cluster. Resize and it reflows from a 3-column layout to a single-column stack; every tile auto-sizes to its wrapped copy.
+2. **`02-vector-connections.scene.ts`**: A 1-source / 3-worker / 1-sink pipeline. The six bezier connectors are routed purely from the resolved box coordinates, so they stay correct whether the split is laid out as columns (wide) or rows (tall).
+3. **`03-absolute-to-responsive.scene.ts`**: Takes a PDF extract's absolute `x`/`width` spans, converts them to percentage columns once, and lets the engine reflow them — the two-column body narrows and the paragraphs rewrap as you shrink the panel.
+4. **`04-dynamic-reflow-overflow.scene.ts`**: Auto-height (a card with no fixed height grows to its text), a real `OverflowSignal` (a fixed-height card surfaces a banner once the text no longer fits), and collision separation (two badges placed at the same coordinate are nudged apart).
+
+The shared helpers live in [`examples/kit.ts`](examples/kit.ts) (connectors, intrinsic sizing) and [`examples/shell.ts`](examples/shell.ts) (the resize runtime + SVG drawing). The original brutalist playground is still available at [`examples/interactive-demo.html`](examples/interactive-demo.html).
 
 ---
 

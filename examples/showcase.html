@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Boxwood — Live Layout Showcase</title>
+
+<!--
+  ────────────────────────────────────────────────────────────────────────────
+  BOXWOOD — SELF-CONTAINED SHOWCASE  (open this file directly in any browser)
+  ────────────────────────────────────────────────────────────────────────────
+  No build step. Plain HTML / CSS / JS. Boxwood is loaded from a CDN below.
+
+  What it demonstrates, in ONE use case:
+    • You write ONE declarative tree (CSS-like: cols / rows / gap / padding).
+    • resolveLayout() turns it into absolute {x, y, w, h} boxes.
+    • You draw those boxes however you like — here, as SVG.
+    • Because you own the coordinates, drawing CONNECTORS between cards is
+      trivial (we route bezier arrows between box centers/edges).
+    • Drag the ◢ corner: the SAME tree is re-resolved at the new size and the
+      whole thing reflows — boxes move, the arrows follow. That is the engine.
+
+  Read drawScene() at the bottom — that ~40-line function is the entire
+  integration. Everything else is page chrome.
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/@canwork/boxwood/dist/boxwood.global.js"></script>
+
+<style>
+  :root {
+    --bg: #0c0c14;
+    --panel: #141424;
+    --line: #2d2d3d;
+    --text: #e2e8f0;
+    --muted: #8a8a9a;
+    --accent: #38bdf8;
+    --gold: #f5a623;
+    --pink: #ec4899;
+    --green: #4ade80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+  header { text-align: center; max-width: 720px; }
+  h1 { color: var(--accent); margin: 0 0 6px; font-size: 26px; letter-spacing: -0.5px; }
+  header p { color: var(--muted); margin: 0; font-size: 14px; line-height: 1.5; }
+  code { color: var(--gold); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .controls button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .controls button:hover { border-color: var(--accent); color: var(--accent); }
+
+  #readout { color: var(--muted); font-size: 13px; font-family: ui-monospace, monospace; }
+
+  /* The resizable viewport. The drag handle lives in its bottom-right corner. */
+  #stage {
+    position: relative;
+    background: radial-gradient(circle at center, #141424 0%, #0e0e16 100%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 24px 50px rgba(0,0,0,0.55);
+    overflow: hidden;
+  }
+  #stage svg {
+    display: block;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px),
+      repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,0.03) 20px);
+  }
+  #handle {
+    position: absolute;
+    right: 0; bottom: 0;
+    width: 26px; height: 26px;
+    cursor: nwse-resize;
+    color: var(--accent);
+    display: grid; place-items: center;
+    font-size: 14px;
+    user-select: none;
+    touch-action: none;
+  }
+  footer { color: var(--muted); font-size: 12px; max-width: 720px; text-align: center; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Boxwood — One Tree In, Live Layout Out</h1>
+  <p>
+    A single declarative tree (<code>cols / rows / gap / padding</code>) is resolved into
+    absolute <code>{x, y, w, h}</code> boxes and drawn as SVG. Because you own the
+    coordinates, the bezier connectors are trivial to route. <strong>Drag the ◢ corner</strong> —
+    the same tree re-resolves and the whole composition reflows.
+  </p>
+</header>
+
+<div class="controls">
+  <button data-w="900" data-h="540">🖥️ Desktop</button>
+  <button data-w="620" data-h="560">💻 Tablet</button>
+  <button data-w="380" data-h="640">📱 Phone</button>
+</div>
+
+<div id="readout"></div>
+
+<div id="stage">
+  <div id="handle">◢</div>
+</div>
+
+<footer>
+  This page has no build step — it loads <code>@canwork/boxwood</code> from a CDN and calls
+  <code>resolveLayout()</code> on every resize. View source: the entire integration is the
+  <code>drawScene()</code> function. To see how you'd wire this into a real TypeScript project,
+  read the <code>*.scene.ts</code> files and run <code>npx tsx examples/build.ts</code>.
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+ *  THE INTEGRATION  — everything below is how you actually use Boxwood.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+const { resolveLayout, defaultMeasure } = Boxwood;
+
+/**
+ * A measure hook makes a card grow to fit real text (auto-height). Boxwood
+ * calls this with the available box and we return wrapped lines + metrics.
+ */
+function label(text, fontSize = 14) {
+  return (avail) => defaultMeasure(text, { fontSize }, avail.w);
+}
+
+/**
+ * buildTree(orientation) — the ONLY layout code.
+ *
+ * It returns ONE Boxwood tree describing a small "pipeline dashboard":
+ *   a header band, a row of three stage cards, and a footer summary.
+ * When the viewport is taller than it is wide we flip the three stages from
+ * a column-split (side by side) to a row-split (stacked) — the classic
+ * responsive breakpoint, expressed declaratively.
+ */
+function buildTree(orientation) {
+  const stage = (id, title) => ({
+    id,
+    style: { padding: 14 },
+    measure: label(title, 15),
+  });
+
+  const stages = {
+    style: { w: "100%", h: "100%" },
+    // ── the responsive switch: cols on wide screens, rows on tall ones ──
+    split:
+      orientation === "wide"
+        ? { cols: 3, gap: 16 }
+        : { rows: 3, gap: 16 },
+    children: [
+      stage("ingest", "1 · Ingest  —  pull raw events from the queue"),
+      stage("transform", "2 · Transform  —  normalize, enrich, and validate each record"),
+      stage("publish", "3 · Publish  —  fan out to the downstream sinks"),
+    ],
+  };
+
+  return {
+    style: { padding: 20 },
+    split: { rows: ["72px", "auto", "64px"], gap: 16 },
+    children: [
+      { id: "header", style: { padding: 16 }, measure: label("Event Pipeline — live status", 20) },
+      stages,
+      { id: "summary", style: { padding: 14 }, measure: label("Throughput 12.4k/s · 0 errors", 14) },
+    ],
+  };
+}
+
+/** Geometry helpers — you own the coordinates, so connectors are just math. */
+function centerRight(b) { return { x: b.x + b.w, y: b.y + b.h / 2 }; }
+function centerLeft(b)  { return { x: b.x,       y: b.y + b.h / 2 }; }
+function centerTop(b)   { return { x: b.x + b.w / 2, y: b.y }; }
+function centerBottom(b){ return { x: b.x + b.w / 2, y: b.y + b.h }; }
+
+/** Bezier path between two cards, picking horizontal vs vertical from layout. */
+function connector(a, b, horizontal) {
+  const from = horizontal ? centerRight(a) : centerBottom(a);
+  const to   = horizontal ? centerLeft(b)  : centerTop(b);
+  const dx = (to.x - from.x), dy = (to.y - from.y);
+  const c1 = horizontal ? { x: from.x + dx * 0.5, y: from.y } : { x: from.x, y: from.y + dy * 0.5 };
+  const c2 = horizontal ? { x: to.x   - dx * 0.5, y: to.y }   : { x: to.x,   y: to.y   - dy * 0.5 };
+  return `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`;
+}
+
+const COLORS = {
+  header:   { stroke: "#38bdf8", fill: "rgba(56,189,248,0.12)" },
+  ingest:   { stroke: "#f5a623", fill: "rgba(245,166,35,0.12)" },
+  transform:{ stroke: "#4ade80", fill: "rgba(74,222,128,0.12)" },
+  publish:  { stroke: "#ec4899", fill: "rgba(236,72,153,0.12)" },
+  summary:  { stroke: "#8a8a9a", fill: "rgba(138,138,154,0.12)" },
+};
+
+/**
+ * drawScene(viewport) — resolve the tree at the current size, then render.
+ * This is the whole loop: declarative tree -> absolute boxes -> SVG.
+ */
+function drawScene({ w, h }) {
+  const horizontal = w >= h;
+  const tree = buildTree(horizontal ? "wide" : "tall");
+
+  // 1) Resolve. Out comes a flat list of boxes with absolute coordinates.
+  const { boxes } = resolveLayout(tree, { x: 0, y: 0, w, h }, { measure: defaultMeasure });
+
+  const byId = (id) => boxes.find((n) => n.node.id === id)?.box;
+
+  // 2) Draw each leaf card from its resolved box.
+  let cards = "";
+  for (const node of boxes) {
+    if (node.children && node.children.length) continue; // skip layout containers
+    const { x, y, w: bw, h: bh } = node.box;
+    const c = COLORS[node.node.id] || { stroke: "#505068", fill: "rgba(80,80,104,0.15)" };
+    const lines = (node.textLayout?.lines ?? [])
+      .map((ln, i) => `<tspan x="${x + 14}" dy="${i === 0 ? 0 : 18}">${esc(ln)}</tspan>`)
+      .join("");
+    cards += `
+      <g>
+        <rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="10"
+              fill="${c.fill}" stroke="${c.stroke}" stroke-width="2" />
+        <text x="${x + 14}" y="${y + 24}" fill="${c.stroke}"
+              font-family="ui-monospace, monospace" font-size="11" font-weight="700">${esc(node.node.id)}</text>
+        <text x="${x + 14}" y="${y + 44}" fill="#e2e8f0" font-family="sans-serif" font-size="13">${lines}</text>
+      </g>`;
+  }
+
+  // 3) Route connectors between the three stages — same code, both orientations,
+  //    because we just ask the resolved boxes where they ended up.
+  const a = byId("ingest"), b = byId("transform"), c = byId("publish");
+  let arrows = "";
+  if (a && b && c) {
+    arrows = [connector(a, b, horizontal), connector(b, c, horizontal)]
+      .map((d) => `<path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2"
+                         stroke-dasharray="6 5" marker-end="url(#arrow)" opacity="0.9" />`)
+      .join("");
+  }
+
+  return `
+    <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8" />
+        </marker>
+      </defs>
+      ${cards}
+      ${arrows}
+    </svg>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* ── page chrome: wire up the resize handle + presets, call drawScene() ── */
+(function () {
+  const stage = document.getElementById("stage");
+  const handle = document.getElementById("handle");
+  const readout = document.getElementById("readout");
+  const MIN = { w: 320, h: 360 }, MAX = { w: 1000, h: 760 };
+  let w = 900, h = 540;
+
+  function render() {
+    stage.style.width = w + "px";
+    stage.style.height = h + "px";
+    stage.innerHTML = drawScene({ w, h }) + '<div id="handle">◢</div>';
+    document.getElementById("handle").addEventListener("pointerdown", onDown);
+    readout.textContent =
+      `viewport ${Math.round(w)} × ${Math.round(h)} px — ${w >= h ? "wide → columns" : "tall → rows"}`;
+  }
+
+  let drag = null;
+  function onDown(e) {
+    drag = { x: e.clientX, y: e.clientY, w, h };
+    e.target.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    w = Math.max(MIN.w, Math.min(MAX.w, drag.w + (e.clientX - drag.x)));
+    h = Math.max(MIN.h, Math.min(MAX.h, drag.h + (e.clientY - drag.y)));
+    render();
+  });
+  window.addEventListener("pointerup", () => (drag = null));
+
+  document.querySelectorAll("[data-w]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      w = Number(btn.dataset.w);
+      h = Number(btn.dataset.h);
+      render();
+    })
+  );
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -4,3 +4,4 @@ dist/
 .DS_Store
 pnpm-workspace.yaml
 pnpm-lock.yaml
+tmp

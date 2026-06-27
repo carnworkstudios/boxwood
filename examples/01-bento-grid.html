@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Boxwood — 02 — Branching Vector Connections</title>
+<title>Boxwood — 01 — Responsive Bento Grid</title>
 <style>
   :root { --bg:#0c0c14; --panel:#141424; --line:#2d2d3d; --text:#e2e8f0; --muted:#8a8a9a; --accent:#38bdf8; }
   * { box-sizing: border-box; }
@@ -42,8 +42,8 @@
 </head>
 <body>
 <header>
-  <h1>02 — Branching Vector Connections</h1>
-  <p>A 1-source / 3-worker / 1-sink pipeline. Resize narrower than it is tall and the split flips from columns to rows; connect() picks facing edges from relative position alone, so the 6 curves stay correctly routed in both orientations. Card text grows its box via the engine's own auto-height, never overflowing.</p>
+  <h1>01 — Responsive Bento Grid</h1>
+  <p>splitGrid() carves the viewport into a cell grid; zones merge cells into a hero tile and a timeline strip. Each tile's text has a real measure hook with auto height, so resizing the panel reflows the grid AND grows every tile to fit its wrapped copy.</p>
 </header>
 <div class="controls">
   <button data-w="900" data-h="540">🖥️ Wide</button>
@@ -496,42 +496,6 @@
     return { root: resolved, boxes, overflow };
   }
 
-  // examples/kit.ts
-  function anchorOf(box, side) {
-    const { x, y, w, h } = box;
-    switch (side) {
-      case "top":
-        return { x: x + w / 2, y };
-      case "bottom":
-        return { x: x + w / 2, y: y + h };
-      case "left":
-        return { x, y: y + h / 2 };
-      case "right":
-        return { x: x + w, y: y + h / 2 };
-    }
-  }
-  function nearestSides(a, b) {
-    const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
-    const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-    const dx = bc.x - ac.x;
-    const dy = bc.y - ac.y;
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return dx >= 0 ? { from: "right", to: "left" } : { from: "left", to: "right" };
-    }
-    return dy >= 0 ? { from: "bottom", to: "top" } : { from: "top", to: "bottom" };
-  }
-  function connect(a, b) {
-    const { from, to } = nearestSides(a, b);
-    const fp = anchorOf(a, from);
-    const tp = anchorOf(b, to);
-    const horizontal = from === "left" || from === "right";
-    const offset = Math.max(40, (horizontal ? Math.abs(tp.x - fp.x) : Math.abs(tp.y - fp.y)) * 0.4);
-    const c1 = horizontal ? { x: fp.x + (from === "right" ? offset : -offset), y: fp.y } : { x: fp.x, y: fp.y + (from === "bottom" ? offset : -offset) };
-    const c2 = horizontal ? { x: tp.x + (to === "left" ? -offset : offset), y: tp.y } : { x: tp.x, y: tp.y + (to === "top" ? -offset : offset) };
-    const d = `M ${fp.x} ${fp.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${tp.x} ${tp.y}`;
-    return { d, from: fp, to: tp };
-  }
-
   // examples/shell.ts
   var MIN = { w: 300, h: 240 };
   var MAX = { w: 1100, h: 780 };
@@ -609,57 +573,69 @@
     </svg>`;
   }
 
-  // examples/02-vector-connections.scene.ts
+  // examples/01-bento-grid.scene.ts
   var measure = (text, fontSize = 14) => (avail) => defaultMeasure(text, { fontSize }, avail.w);
-  var NODES = {
-    source: { tone: "blue", text: "Source \u2014 ingest stream" },
-    "worker-a": { tone: "green", text: "Worker A \u2014 resize images" },
-    "worker-b": { tone: "green", text: "Worker B \u2014 transcode video" },
-    "worker-c": { tone: "green", text: "Worker C \u2014 extract text" },
-    sink: { tone: "pink", text: "Sink \u2014 write to store" }
-  };
-  function leaf(id) {
-    return { id, style: { padding: 12 }, measure: measure(NODES[id].text, 14) };
-  }
+  var TILES = [
+    { id: "hero", tone: "gold", weight: 2, text: "Revenue this quarter is up 18% \u2014 the strongest run since launch, driven by the new self-serve tier." },
+    { id: "kpi-1", tone: "green", text: "Active users 42,180" },
+    { id: "kpi-2", tone: "blue", text: "Conversion 3.9%" },
+    { id: "kpi-3", tone: "pink", text: "Churn 1.2%" },
+    { id: "kpi-4", tone: "green", text: "NPS 61" },
+    { id: "timeline", tone: "slate", weight: 2, text: "Activity \u2014 14:02 deploy \xB7 13:41 alert cleared \xB7 12:10 backup ok \xB7 11:55 new region online" }
+  ];
   function buildTree(orientation) {
-    const outer = orientation === "wide" ? { cols: 3, gap: 28 } : { rows: 3, gap: 24 };
-    const innerWorkers = orientation === "wide" ? { rows: 3, gap: 16 } : { cols: 3, gap: 16 };
+    const cols = orientation === "wide" ? ["50%", "25%", "25%"] : ["100%"];
     return {
-      style: { padding: 24 },
-      split: outer,
-      children: [
-        { style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [leaf("source")] },
-        { style: { w: "100%", h: "100%" }, split: innerWorkers, children: [leaf("worker-a"), leaf("worker-b"), leaf("worker-c")] },
-        { style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [leaf("sink")] }
+      style: { padding: 18 },
+      split: { cols, gap: 14 },
+      children: orientation === "wide" ? [
+        // left column: hero on top, timeline below
+        {
+          style: { w: "100%", h: "100%" },
+          split: { rows: ["62%", "38%"], gap: 14 },
+          children: [tile("hero"), tile("timeline")]
+        },
+        // middle + right columns: two KPI stacks
+        {
+          style: { w: "100%", h: "100%" },
+          split: { rows: 2, gap: 14 },
+          children: [tile("kpi-1"), tile("kpi-3")]
+        },
+        {
+          style: { w: "100%", h: "100%" },
+          split: { rows: 2, gap: 14 },
+          children: [tile("kpi-2"), tile("kpi-4")]
+        }
+      ] : [
+        {
+          style: { w: "100%", h: "100%" },
+          split: { rows: ["auto", "auto", "auto", "auto", "auto", "auto"], gap: 12 },
+          children: TILES.map((t) => tile(t.id))
+        }
       ]
     };
+  }
+  function tile(id) {
+    const t = TILES.find((x) => x.id === id);
+    return { id, style: { padding: 14 }, measure: measure(t.text, id === "hero" ? 17 : 14) };
   }
   function buildScene({ w, h }) {
     const tree = buildTree(w >= h ? "wide" : "tall");
     const { boxes } = resolveLayout(tree, { x: 0, y: 0, w, h }, { measure: defaultMeasure });
-    const box = (id) => boxes.find((n) => n.node.id === id)?.box;
-    let cards = "";
+    let out = "";
     for (const node of boxes) {
       if (node.children && node.children.length) continue;
-      const meta = NODES[node.node.id ?? ""];
-      if (!meta) continue;
-      cards += card(node.box, { id: node.node.id, tone: meta.tone, lines: node.textLayout?.lines ?? [] });
+      const t = TILES.find((x) => x.id === node.node.id);
+      out += card(node.box, {
+        id: node.node.id,
+        tone: t?.tone ?? "slate",
+        lines: node.textLayout?.lines ?? [],
+        fontSize: node.node.id === "hero" ? 16 : 13
+      });
     }
-    const src = box("source");
-    const snk = box("sink");
-    const workers = ["worker-a", "worker-b", "worker-c"].map(box);
-    let arrows = "";
-    if (src && snk) {
-      for (const wk of workers) {
-        if (!wk) continue;
-        for (const d of [connect(src, wk).d, connect(wk, snk).d]) {
-          arrows += `<path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)" opacity="0.85" />`;
-        }
-      }
-    }
-    return svg(w, h, cards + arrows);
+    return svg(w, h, out);
   }
-  mountScene({ scene: buildScene, initialW: 900, initialH: 520 });
+  mountScene({ scene: buildScene, initialW: 900, initialH: 560 });
 })();
 
 </script>

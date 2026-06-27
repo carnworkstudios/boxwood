@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Boxwood — 02 — Branching Vector Connections</title>
+<title>Boxwood — 03 — Absolute PDF Spans → Responsive Reflow</title>
 <style>
   :root { --bg:#0c0c14; --panel:#141424; --line:#2d2d3d; --text:#e2e8f0; --muted:#8a8a9a; --accent:#38bdf8; }
   * { box-sizing: border-box; }
@@ -42,8 +42,8 @@
 </head>
 <body>
 <header>
-  <h1>02 — Branching Vector Connections</h1>
-  <p>A 1-source / 3-worker / 1-sink pipeline. Resize narrower than it is tall and the split flips from columns to rows; connect() picks facing edges from relative position alone, so the 6 curves stay correctly routed in both orientations. Card text grows its box via the engine's own auto-height, never overflowing.</p>
+  <h1>03 — Absolute PDF Spans → Responsive Reflow</h1>
+  <p>A PDF extract's absolute x/w spans are converted to percentage columns. Shrink the panel and the two-column body narrows while each paragraph rewraps into more and more lines — a live CSS-style column reflow driven by geometry derived once, up front.</p>
 </header>
 <div class="controls">
   <button data-w="900" data-h="540">🖥️ Wide</button>
@@ -65,8 +65,8 @@
     if (v === void 0) return defaultVal;
     if (v === "auto") return defaultVal;
     if (typeof v === "number") return v;
-    const pct = parseFloat(v);
-    if (v.endsWith("%") && !isNaN(pct)) return pct / 100 * parentSize;
+    const pct2 = parseFloat(v);
+    if (v.endsWith("%") && !isNaN(pct2)) return pct2 / 100 * parentSize;
     return defaultVal;
   }
   function resolveGap(gap, parentSize) {
@@ -96,9 +96,9 @@
     return spec.map((s, idx) => {
       if (typeof s === "number") return { w: s, kind: "fixed", idx };
       if (s === "auto") return { w: autoW, kind: "auto", idx };
-      const pct = parseFloat(s);
-      if (s.endsWith("%") && !isNaN(pct)) {
-        return { w: pct / 100 * parentW, kind: "pct", idx };
+      const pct2 = parseFloat(s);
+      if (s.endsWith("%") && !isNaN(pct2)) {
+        return { w: pct2 / 100 * parentW, kind: "pct", idx };
       }
       return { w: 0, kind: "fixed", idx };
     });
@@ -131,8 +131,8 @@
       if (typeof s === "number") {
         usedFixed += s;
       } else if (typeof s === "string" && s.endsWith("%")) {
-        const pct = parseFloat(s);
-        if (!isNaN(pct)) usedPct += pct / 100 * parentH;
+        const pct2 = parseFloat(s);
+        if (!isNaN(pct2)) usedPct += pct2 / 100 * parentH;
       }
     }
     const remaining = parentH - usedFixed - usedPct - gap * (n - 1);
@@ -148,9 +148,9 @@
     return spec.map((s, idx) => {
       if (typeof s === "number") return { h: s, kind: "fixed", idx };
       if (s === "auto") return { h: autoH, kind: "auto", idx };
-      const pct = parseFloat(s);
-      if (s.endsWith("%") && !isNaN(pct)) {
-        return { h: pct / 100 * parentH, kind: "pct", idx };
+      const pct2 = parseFloat(s);
+      if (s.endsWith("%") && !isNaN(pct2)) {
+        return { h: pct2 / 100 * parentH, kind: "pct", idx };
       }
       return { h: 0, kind: "fixed", idx };
     });
@@ -323,8 +323,8 @@
     if (v === void 0) return defaultVal;
     if (v === "auto") return defaultVal;
     if (typeof v === "number") return v;
-    const pct = parseFloat(v);
-    if (v.endsWith("%") && !isNaN(pct)) return pct / 100 * parentSize;
+    const pct2 = parseFloat(v);
+    if (v.endsWith("%") && !isNaN(pct2)) return pct2 / 100 * parentSize;
     return defaultVal;
   }
   function resolvePos(pos, parentFrame, nodeW, nodeH) {
@@ -356,8 +356,8 @@
       return { h: styleH, isAuto: false };
     }
     if (typeof styleH === "string" && styleH.endsWith("%")) {
-      const pct = parseFloat(styleH);
-      if (!isNaN(pct)) return { h: pct / 100 * parentH, isAuto: false };
+      const pct2 = parseFloat(styleH);
+      if (!isNaN(pct2)) return { h: pct2 / 100 * parentH, isAuto: false };
     }
     return { h: 0, isAuto: true };
   }
@@ -496,42 +496,6 @@
     return { root: resolved, boxes, overflow };
   }
 
-  // examples/kit.ts
-  function anchorOf(box, side) {
-    const { x, y, w, h } = box;
-    switch (side) {
-      case "top":
-        return { x: x + w / 2, y };
-      case "bottom":
-        return { x: x + w / 2, y: y + h };
-      case "left":
-        return { x, y: y + h / 2 };
-      case "right":
-        return { x: x + w, y: y + h / 2 };
-    }
-  }
-  function nearestSides(a, b) {
-    const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
-    const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-    const dx = bc.x - ac.x;
-    const dy = bc.y - ac.y;
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return dx >= 0 ? { from: "right", to: "left" } : { from: "left", to: "right" };
-    }
-    return dy >= 0 ? { from: "bottom", to: "top" } : { from: "top", to: "bottom" };
-  }
-  function connect(a, b) {
-    const { from, to } = nearestSides(a, b);
-    const fp = anchorOf(a, from);
-    const tp = anchorOf(b, to);
-    const horizontal = from === "left" || from === "right";
-    const offset = Math.max(40, (horizontal ? Math.abs(tp.x - fp.x) : Math.abs(tp.y - fp.y)) * 0.4);
-    const c1 = horizontal ? { x: fp.x + (from === "right" ? offset : -offset), y: fp.y } : { x: fp.x, y: fp.y + (from === "bottom" ? offset : -offset) };
-    const c2 = horizontal ? { x: tp.x + (to === "left" ? -offset : offset), y: tp.y } : { x: tp.x, y: tp.y + (to === "top" ? -offset : offset) };
-    const d = `M ${fp.x} ${fp.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${tp.x} ${tp.y}`;
-    return { d, from: fp, to: tp };
-  }
-
   // examples/shell.ts
   var MIN = { w: 300, h: 240 };
   var MAX = { w: 1100, h: 780 };
@@ -609,57 +573,54 @@
     </svg>`;
   }
 
-  // examples/02-vector-connections.scene.ts
+  // examples/03-absolute-to-responsive.scene.ts
   var measure = (text, fontSize = 14) => (avail) => defaultMeasure(text, { fontSize }, avail.w);
-  var NODES = {
-    source: { tone: "blue", text: "Source \u2014 ingest stream" },
-    "worker-a": { tone: "green", text: "Worker A \u2014 resize images" },
-    "worker-b": { tone: "green", text: "Worker B \u2014 transcode video" },
-    "worker-c": { tone: "green", text: "Worker C \u2014 extract text" },
-    sink: { tone: "pink", text: "Sink \u2014 write to store" }
-  };
-  function leaf(id) {
-    return { id, style: { padding: 12 }, measure: measure(NODES[id].text, 14) };
-  }
-  function buildTree(orientation) {
-    const outer = orientation === "wide" ? { cols: 3, gap: 28 } : { rows: 3, gap: 24 };
-    const innerWorkers = orientation === "wide" ? { rows: 3, gap: 16 } : { cols: 3, gap: 16 };
+  var PAGE_W = 612;
+  var SPANS = [
+    { id: "title", x: 56, w: 500, text: "Quarterly Field Report", size: 20 },
+    { id: "col-left", x: 56, w: 240, text: "The northern transect showed a marked increase in canopy density compared to the prior survey, consistent with the wetter season and reduced grazing pressure across the lower slopes." },
+    { id: "col-right", x: 320, w: 236, text: "Soil samples returned higher nitrogen than expected; we attribute this to the cover-crop rotation begun last spring, which appears to be establishing well despite the late frost." }
+  ];
+  var pct = (v) => `${v / PAGE_W * 100}%`;
+  function buildTree() {
     return {
-      style: { padding: 24 },
-      split: outer,
+      style: { padding: 20 },
+      // A fixed title band, then the body fills the rest of the height.
+      split: { rows: [64, "auto"], gap: 16 },
       children: [
-        { style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [leaf("source")] },
-        { style: { w: "100%", h: "100%" }, split: innerWorkers, children: [leaf("worker-a"), leaf("worker-b"), leaf("worker-c")] },
-        { style: { w: "100%", h: "100%" }, split: { rows: 1 }, children: [leaf("sink")] }
+        { id: "title", style: { padding: 12 }, measure: measure(SPANS[0].text, 20) },
+        {
+          // Two columns whose widths come straight from the PDF span geometry,
+          // expressed as percentages so they scale with the viewport. The gap is
+          // the original inter-column space (320 − (56 + 240)), also as a %.
+          style: { w: "100%", h: "100%" },
+          split: { cols: [pct(SPANS[1].w), pct(SPANS[2].w)], gap: pct(320 - (56 + 240)) },
+          children: [
+            // h: "100%" lets each column fill the body; as the panel narrows the
+            // text simply rewraps into more lines within the same column.
+            { id: "col-left", style: { padding: 12, h: "100%" }, measure: measure(SPANS[1].text, 13) },
+            { id: "col-right", style: { padding: 12, h: "100%" }, measure: measure(SPANS[2].text, 13) }
+          ]
+        }
       ]
     };
   }
   function buildScene({ w, h }) {
-    const tree = buildTree(w >= h ? "wide" : "tall");
-    const { boxes } = resolveLayout(tree, { x: 0, y: 0, w, h }, { measure: defaultMeasure });
-    const box = (id) => boxes.find((n) => n.node.id === id)?.box;
-    let cards = "";
+    const { boxes } = resolveLayout(buildTree(), { x: 0, y: 0, w, h }, { measure: defaultMeasure });
+    let out = "";
     for (const node of boxes) {
       if (node.children && node.children.length) continue;
-      const meta = NODES[node.node.id ?? ""];
-      if (!meta) continue;
-      cards += card(node.box, { id: node.node.id, tone: meta.tone, lines: node.textLayout?.lines ?? [] });
+      const tone = node.node.id === "title" ? "blue" : node.node.id === "col-left" ? "gold" : "green";
+      out += card(node.box, {
+        id: node.node.id,
+        tone,
+        lines: node.textLayout?.lines ?? [],
+        fontSize: node.node.id === "title" ? 18 : 13
+      });
     }
-    const src = box("source");
-    const snk = box("sink");
-    const workers = ["worker-a", "worker-b", "worker-c"].map(box);
-    let arrows = "";
-    if (src && snk) {
-      for (const wk of workers) {
-        if (!wk) continue;
-        for (const d of [connect(src, wk).d, connect(wk, snk).d]) {
-          arrows += `<path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)" opacity="0.85" />`;
-        }
-      }
-    }
-    return svg(w, h, cards + arrows);
+    return svg(w, h, out);
   }
-  mountScene({ scene: buildScene, initialW: 900, initialH: 520 });
+  mountScene({ scene: buildScene, initialW: 900, initialH: 480 });
 })();
 
 </script>

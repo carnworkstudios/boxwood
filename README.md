@@ -1,6 +1,6 @@
 # Boxwood
 
-[![npm version](https://img.shields.io/npm/v/@canwork/boxwood?style=for-the-badge)](https://www.npmjs.com/package/@canwork/boxwood) [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/canwork/boxwood/ci.yml?branch=main&style=for-the-badge)](https://github.com/canwork/boxwood/actions/workflows/ci.yml) [![License](https://img.shields.io/npm/l/@canwork/boxwood?style=for-the-badge)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/@canwork/boxwood?style=for-the-badge)](https://www.npmjs.com/package/@canwork/boxwood) [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/carnworkstudios/boxwood/ci.yml?branch=main&style=for-the-badge)](https://github.com/carnworkstudios/boxwood/actions/workflows/ci.yml) [![License](https://img.shields.io/npm/l/@canwork/boxwood?style=for-the-badge)](LICENSE)
 
 A Declarative Box-Split and Collision Engine for Vector Graphics. It provides a CSS-like layout grammar (`padding`, `gap`, `cols`, `rows`, `auto-height`) and resolves it into a clean JSON coordinate tree for any visual canvas (SVG, `<canvas>`, WebGL).
 

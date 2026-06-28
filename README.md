@@ -7,7 +7,7 @@ A Declarative Box-Split and Collision Engine for Vector Graphics. It provides a 
 Unlike typical layout libraries (like Yoga or standard web browsers) that hide resolved position values inside a black box, **Boxwood** exposes absolute coordinate geometry (`{x, y, w, h}`) directly. That makes it easy to draw responsive visuals, route connectors, and manage collision-safe compositions.
 
 ---
-![Demo Animation](./brutalist_playground_visual_1782343082910.webp)
+![Demo Animation](./interactive.gif)
 
 ## Quick start
 

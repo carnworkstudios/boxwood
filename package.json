@@ -1,6 +1,6 @@
 {
   "name": "@canwork/boxwood",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A Declarative Box-Split and Collision Engine for Vector Graphics. It provides a CSS-like layout grammar (padding, gap, cols, rows, auto-height), but outputs a clean JSON coordinate tree that any visual canvas (SVG, <canvas>, WebGL) can use to draw pixels, connectors, and particles.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
